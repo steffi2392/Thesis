@@ -4,6 +4,13 @@ public class Edge {
 	boolean isDummy; 
 	Direction direction; 
 	
+	public Edge(Vertex left, Vertex right) {
+		this.left = left; 
+		this.right = right;
+		isDummy = false; 
+		direction = null;
+	}
+	
 	public Edge(Vertex left, Vertex right, boolean isDummy, Direction direction) {
 		this.left = left; 
 		this.right = right; 

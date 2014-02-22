@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Random; 
@@ -838,6 +839,10 @@ public class Bipartite {
 		System.out.println(); 
 	}
 	
+	/** 
+	 * Makes dfs chains of maximum length: chains from the front and back
+	 * When it finishes, none of the endpoints of the chains should be connected.
+	 */
 	public List<List<Integer>> dfsChaining() {
 		List<List<Integer>> chains = new ArrayList<List<Integer>>();
 		
@@ -855,22 +860,49 @@ public class Bipartite {
 		currChain.add(curr.getId());
 		remaining.remove(curr.getId());
 		stack.add(curr);
+		boolean hasBeenReversed = false;
 		
 		while (!remaining.isEmpty()) {
-			if (stack.isEmpty()) {
+			if (stack.isEmpty() && currChain.isEmpty()) {
 				Vertex v = vertexList[remaining.iterator().next()]; 
 				remaining.remove(v.getId());
 				stack.add(v);
 			}
 			
 			curr = stack.peek(); 
-			//if (!visited.contains(curr.getId())) {
-				if (!visited.contains(curr.getId()) && currChain.isEmpty()) {
-					// if you're starting a new chain, curr hasn't been added yet.
-					currChain.add(curr.getId());
-					remaining.remove(curr.getId());
+			
+			if (curr != null && (!visited.contains(curr.getId()) && currChain.isEmpty())) {
+				// if you're starting a new chain, curr hasn't been added yet.
+				currChain.add(curr.getId());
+				remaining.remove(curr.getId());
+			}
+			
+			if (curr != null && (positions[curr.getId()] == curr.getAdjList().size() 
+					&& !hasBeenReversed && !currChain.isEmpty())) {
+				if (currChain.size() == 1) {
+					hasBeenReversed = true; 
+				} else {
+					// reverse the list and continue from the other end
+					for (int i = 0; i < currChain.size() / 2; i++) {
+						Integer temp = currChain.get(i);
+						currChain.set(i, currChain.get(currChain.size() - 1 - i));
+						currChain.set(currChain.size() - 1 - i, temp);
+					}
+					curr = vertexList[currChain.get(currChain.size() - 1)];
+					stack = new ArrayDeque<Vertex>(); 
+					hasBeenReversed = true;
 				}
-				 
+			}
+			 
+			if (curr == null || (positions[curr.getId()] == curr.getAdjList().size() && hasBeenReversed)) {
+				// dead end! Start a new chain with wherever you're starting from. 
+				if (!currChain.isEmpty()) {
+					chains.add(currChain);
+					currChain = new ArrayList<Integer>(); 
+					stack = new ArrayDeque<Vertex>(); 
+					hasBeenReversed = false;
+				}
+			} else {
 				for (int i = positions[curr.getId()]; i < curr.getAdjList().size(); i++) {
 					positions[curr.getId()]++; 
 					Vertex adj = curr.getAdjList().get(i);
@@ -881,18 +913,11 @@ public class Bipartite {
 						break;
 					}
 				}
-			//}
-			
-			if (positions[curr.getId()] == curr.getAdjList().size()) {
-				// dead end! Start a new chain with wherever you're starting from. 
-				Vertex popped = stack.pop(); 
-				if (!currChain.isEmpty()) {
-					chains.add(currChain);
-					currChain = new ArrayList<Integer>(); 
-				}
 			}
 			
-			visited.add(curr.getId());
+			if (curr != null) {
+				visited.add(curr.getId());
+			}
 		}
 		
 		if (!currChain.isEmpty()) {
@@ -1097,9 +1122,47 @@ public class Bipartite {
 		dfsChainingAlg_givenChains(integerChains, fullGraph);
 	}
 	
+	/**
+	 * Run the algorithm with the maximum length dfs chains
+	 * @throws Exception 
+	 */
+	public static void connectingAlg() throws Exception {
+		int N = 15; 
+		int d = 3; 
+
+		Bipartite fullGraph = new Bipartite(N, d);
+		System.out.println("------------------");
+		System.out.println(fullGraph);
+		
+		List<List<Integer>> chainLists = fullGraph.dfsChaining(); 
+		List<Chain> chains = Chain.convertLists(chainLists);
+
+		System.out.println(); 
+		for (Chain chain : chains) {
+			chain.print(); 
+		}
+		
+		SortedGraph sortedGraph = new SortedGraph(chains, fullGraph.getVertexList(), N); 
+		
+		System.out.println("\n Before Algorithm:");
+		System.out.println("L-term Chains");
+		System.out.println(sortedGraph.getLTerm());
+		System.out.println("\nR-term Chains");
+		System.out.println(sortedGraph.getRTerm());
+		System.out.println("\nEven Chains");
+		System.out.println(sortedGraph.getEven());
+		
+		sortedGraph.connect(); 
+	}
+	
 	public static void main(String[] args) throws Exception {
 		//dfsChainingAlg(); 
 		//chainUntilAdjFailure(); 
-		dfsChainingAlg_withPreprocessing(); 
+		//dfsChainingAlg_withPreprocessing(); 
+		
+		while (true) {
+			connectingAlg(); 
+			Chain.resetNumChains(); 
+		}
 	}
 }

@@ -1,0 +1,238 @@
+import java.util.ArrayList;
+import java.util.Set; 
+import java.util.HashSet; 
+import java.util.Stack;
+import java.util.Queue; 
+import java.util.LinkedList; 
+import java.util.Map;
+import java.util.HashMap;
+
+public class Node {
+	private int id;
+	private int count; 
+	private ArrayList<Edge> zeroes; 
+	private ArrayList<Edge> plusOnes;  
+	private ArrayList<Edge> minusOnes;
+	private Edge dummy;
+	private Node pred; 
+	
+	public Node(int id) {
+		this.id = id;
+		count = 0; 
+		zeroes = new ArrayList<Edge>();
+		plusOnes = new ArrayList<Edge>(); 
+		minusOnes = new ArrayList<Edge>(); 
+		pred = null; 
+		dummy = null;
+	}
+	
+	public int getId() {
+		return id;
+	}
+	
+	public int getCount() {
+		return count;
+	}
+	
+	public void setCount(int count) {
+		this.count = count; 
+	}
+	
+	public int incrementCount() {
+		count++; 
+		return count;
+	}
+	
+	public ArrayList<Edge> getEdges() {
+		ArrayList<Edge> allEdges = new ArrayList<Edge>(zeroes);
+		allEdges.addAll(plusOnes);
+		allEdges.addAll(minusOnes);
+		if (dummy != null) {
+			allEdges.add(dummy);
+		}
+		return allEdges;
+	}
+	
+	public ArrayList<Edge> getRealEdges() {
+		ArrayList<Edge> allEdges = new ArrayList<Edge>(zeroes);
+		allEdges.addAll(plusOnes);
+		allEdges.addAll(minusOnes);
+		return allEdges;
+	}
+	
+	public Edge getDummyEdge() {
+		return dummy;
+	}
+	
+	public ArrayList<Edge> getZeroes() {
+		return zeroes; 
+	}
+	
+	public ArrayList<Edge> getPlusOnes() {
+		return plusOnes; 
+	}
+	
+	public ArrayList<Edge> getMinusOnes() {
+		return minusOnes; 
+	}
+	
+	public boolean hasDummy() {
+		return dummy != null;
+	}
+	
+	public void addEdge(Edge edge) {
+		if (edge.isDummy()) {
+			if (dummy != null) {
+				System.out.println("ERROR: Node already has dummy associated with it.");
+				return;
+			}
+			dummy = edge;
+		} else {
+			switch (edge.getWeight()) {
+			case 0:
+				zeroes.add(edge);
+				break;
+			case 1:
+				plusOnes.add(edge);
+				break;
+			case -1:
+				minusOnes.add(edge);
+				break;
+			}
+		}
+	}
+	
+	public boolean hasEdge(Edge edge) {
+		return getEdges().contains(edge);
+	}
+	
+	public void removeEdge(Edge edge) {
+		if (edge == dummy) {
+			dummy = null;
+		} else if (edge.getWeight() == 0) {
+			zeroes.remove(edge);
+		} else if (edge.getWeight() == 1) {
+			plusOnes.remove(edge);
+		} else {
+			minusOnes.remove(edge);
+		}
+	}
+	
+	public void moveEdge(Edge edge, int oldWeight) {
+		if (edge == dummy) {
+			return;
+		}
+		
+		switch (oldWeight) {
+		case 0:
+			zeroes.remove(edge);
+			break;
+		case 1: 
+			plusOnes.remove(edge);
+			break;
+		case -1: 
+			minusOnes.remove(edge);
+			break;
+		}
+		addEdge(edge);
+	}
+	
+	public void setPred(Node pred) {
+		this.pred = pred; 
+	}
+	
+	public Node getPred() {
+		return pred; 
+	}
+	
+	public ArrayList<Node> getNeighbors() {
+		ArrayList<Node> childList = new ArrayList<Node>(); 
+		for (Edge e : getEdges()) {
+			if (e.getLeft().equals(this)) {
+				childList.add(e.getRight());
+			} else {
+				childList.add(e.getLeft());
+			}
+		}
+		return childList;
+	}
+	
+	public ArrayList<Node> getChildren() {
+		return getNeighbors();
+	}
+	
+	// return a list of neighbors linked by a non-dummy edge
+	public ArrayList<Node> getRealNeighbors() {
+		ArrayList<Node> realList = new ArrayList<Node>(); 
+		for (Edge e : getRealEdges()) {
+			if (e.getLeft().equals(this)) {
+				realList.add(e.getRight());
+			} else {
+				realList.add(e.getLeft());
+			}
+		}
+		return realList; 
+	}
+	
+	// return the neighbor linked by the dummy edge
+	public Node getDummyNeighbor() {
+		if (dummy == null) {
+			return null;
+		}
+		
+		if (dummy.getLeft().equals(this)) {
+			return dummy.getRight();
+		} else {
+			return dummy.getLeft(); 
+		} 
+	}
+	
+	public void prettyPrint() {
+		Set<Node> printed = new HashSet<Node>(); 
+		Stack<Node> upcoming = new Stack<Node>(); 
+		upcoming.add(this);
+		
+		while (!upcoming.isEmpty()) {
+			Node curr = upcoming.pop(); 
+			if (!printed.contains(curr)) {
+				System.out.println(curr.toString());
+				for (Node child : curr.getNeighbors()) {
+					if (!printed.contains(child)) {
+						upcoming.add(child);
+					}
+				}
+				printed.add(curr);
+			}
+		}
+	}
+	
+	public String toString() {
+		String s = this.id + ": ";
+		for (Node n : getRealNeighbors()) {
+			s += n.getId() + ", ";
+		}
+		if (dummy != null) {
+			s += getDummyNeighbor().getId() + " (dummy), ";
+		}
+		return s;
+	}
+	
+	/**
+	 * perform BFS, assigning all preds to null as you go
+	 */
+	public void clearPreds() {
+		Set<Node> visited = new HashSet<Node>(); 
+		Queue<Node> queue = new LinkedList<Node>(); 
+		queue.add(this);
+		
+		while (!queue.isEmpty()) {
+			Node curr = queue.poll(); 
+			if (!visited.contains(curr)) {
+				curr.setPred(null);
+				for (Node neighbor : curr.getNeighbors()) {
+					queue.add(neighbor);
+				}
+			}
+		}
+	}
+}

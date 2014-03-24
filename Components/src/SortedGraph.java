@@ -10,16 +10,29 @@ public class SortedGraph {
 	private Map<Integer, Chain> chainMap;
 	private List<Chain> lTerm; 
 	private List<Chain> rTerm; 
-	private List<Chain> even; 
+	private List<Chain> even;
+	private List<Chain> consideredEven; 
 	private Vertex[] vertexList;
 	private int N;
+	private int[] evenToOddCount; 
+	private int[][] affectedCount; 
 	
 	public SortedGraph(List<Chain> chains, Vertex[] vertexList, int N) {
+		evenToOddCount = new int[N * 2];
+		affectedCount = new int[N * 2][6];
+		for (int i = 0; i < N * 2; i++) {
+			evenToOddCount[i] = 0; 
+			for (int j = 0; j < 6; j++) {
+				affectedCount[i][j] = 0; 
+			}
+		}
+		
 		this.vertexList = vertexList;
 		this.N = N; 
 		lTerm = new ArrayList<Chain>();
 		rTerm = new ArrayList<Chain>();
 		even = new ArrayList<Chain>(); 
+		consideredEven = new ArrayList<Chain>(); 
 		
 		chainMap = new HashMap<Integer, Chain>(); 
 		for (Chain chain : chains) {
@@ -39,6 +52,24 @@ public class SortedGraph {
 		}
 	}
 	
+	public boolean addToList(Chain c, List<Chain> list, String fromFunction) throws Exception {
+		if (c.get(0) >= N) {
+			c.reverse(); 
+		}
+		if (c.length() % 2 == 1 && (list == even || list == consideredEven)) {
+			//System.out.println(c);
+			System.out.println("ERROR: " + fromFunction + " added chain of length " + c.length() + " to even");
+			return false; 
+			//throw new Exception(fromFunction + " added chain of length " + c.length() + " to even");
+		} else if (c.length() % 2 == 0 && list != even && list != consideredEven) {
+			throw new Exception(fromFunction + " adding even chain to an odd list!");
+		}
+		
+		chainMap.put(c.getId(), c); 
+		list.add(c); 
+		return true; 
+	}
+	
 	public List<Chain> getLTerm() {
 		return lTerm;
 	}
@@ -49,6 +80,14 @@ public class SortedGraph {
 	
 	public List<Chain> getEven() {
 		return even;
+	}
+	
+	public int[] getEvenToOddCount() {
+		return evenToOddCount; 
+	}
+	
+	public int[][] getAffectedCount() {
+		return affectedCount; 
 	}
 	
 	public Set<Integer> getLTermSet() {
@@ -85,47 +124,75 @@ public class SortedGraph {
 	 *    2. If none, look for shared even and process accordingly (crossed or bridge)
 	 *    3. For now, just print in this case! Not sure how to handle this yet.
 	 * @throws Exception 
+	 * @returns a list of integers indicating which steps were taken
 	 */
-	public void connect() throws Exception {
-		int i = 0; 
-		boolean elongated = false;
+	public List<Integer> connect() throws Exception {
+		List<Integer> steps = new ArrayList<Integer>(); 
+		int count = 0; 
+		boolean prevWas6 = false; 
+		
 		while (!lTerm.isEmpty()) {
-			if (!processOddConnection()) {
+			count++; 
+			if (count > 4 * N) {
+				System.out.println("STEPS:"); 
+				System.out.println(steps);
+				throw new Exception("Too many iterations!");
+			}
+			if (!prevWas6) {
+				even.addAll(consideredEven);
+				consideredEven = new ArrayList<Chain>(); 
+			}
+			
+			if (!processOddConnection(steps)) {
 				Map<Integer, List<List<Connection>>> connectionMap = getEvenConnectionLists();
-				if (!processSharedEven(connectionMap)) {
-					//System.out.println("No odd connection or shared even!");
-					//System.out.println(); 
-					//printGraph(); 
-					//System.out.println(); 
-					//throw new Exception("No odd connection or shared even!");
-					//return;
-					elongateLeftChain(connectionMap);
-					System.out.println("elongated left chain: " + i); 
-					i++; 
-					if (i > 1)
-						elongated = true;
+				if (!processSharedEven_crossedOrBridge(connectionMap, steps)) {
+					if(!findAndProcessUnshared_bridge(connectionMap, steps)) {
+						if (!findAndProcessShared_noBridge(connectionMap, steps)) {
+							prevWas6 = true; 
+							if (!findAndProcessUnshared_noBridge(connectionMap, steps)) {
+								System.out.println(); 
+								printGraph(); 
+								System.out.println(); 
+								System.out.println("connection map: ");
+								System.out.println(connectionMap);
+								
+								System.out.println(); 
+								System.out.println("consideredEven");
+								System.out.println(consideredEven);
+								throw new Exception("Error: None of the 6 applied."); 
+							}
+						}
+					}
 				}
 			}
-			System.out.println(); 
+			/*System.out.println(); 
 			printGraph(); 
 			System.out.println(); 
+			System.out.println("steps:");
+			System.out.println(steps);*/
 		}
 		
-		if (elongated) {
-			throw new Exception("elongated " + i + " times");
-		}
+		return steps;
 	}
 	
-	// lolz this function.
-	public Connection getOddConnection() {
+	// Only concerned with connections from l in L to r in R!
+	public Connection getOddConnection() throws Exception {
 		Set<Integer> rTermSet = getRTermSet(); 
 		for (Chain lChain : lTerm) {
-			for (int i = 0; i < lChain.getVertexList().size(); i++) {
+			if (lChain.length() % 2 == 0) {
+				throw new Exception("lChain is even");
+			}
+			
+			for (int i = 0; i < lChain.getVertexList().size(); i += 2) {
 				Vertex leftV = vertexList[lChain.get(i)];
 				for (Vertex rightV : leftV.getAdjList()) {
 					if (rTermSet.contains(rightV.getId())) {
 						// Find the chain and index of this connection!
 						for (Chain rChain : rTerm) {
+							if (rChain.length() % 2 == 0) {
+								throw new Exception("rChain is even");
+							}
+							
 							for (int j = 0; j < rChain.getVertexList().size(); j++) {
 								Integer v = rChain.get(j); 
 								if (v.equals(rightV.getId())) {
@@ -155,21 +222,25 @@ public class SortedGraph {
 	/**
 	 * Processes a connection between 2 odd chains if one exists; returns false otherwise. 
 	 * After this, all vertices from both odd chains are in Even.
+	 * @throws Exception 
 	 */
-	public boolean processOddConnection() {
+	public boolean processOddConnection(List<Integer> steps) throws Exception {
 		Connection c = getOddConnection(); 
 		if (c == null) {
-			System.out.println("No odd connection found.");
+			//System.out.println("No odd connection found.");
 			return false; 
 		}
 		
 		Chain lChain = c.getLChain(); 
 		Chain rChain = c.getRChain(); 
 		
-		System.out.println(); 
+		markNodes(lChain, 1); 
+		markNodes(rChain, 1); 
+		
+		/*System.out.println(); 
 		System.out.println("Processing odd connection.");
 		System.out.println(c); 
-		System.out.println(); 
+		System.out.println(); */
 		
 		// remove the chains from the lTerm and rTerm lists
 		lTerm.remove(lChain);
@@ -181,27 +252,50 @@ public class SortedGraph {
 		
 		// add the broken off bits to the even list
 		if (brokenOffL.length() > 0) {
-			even.add(brokenOffL);
+			if (brokenOffL.get(0) >= N) {
+				brokenOffL.reverse(); 
+			}
+			boolean worked = addToList(brokenOffL, even, "processOddConnection1");
+			if (!worked) {
+				System.out.println(); 
+				System.out.println("Processing odd connection.");
+				System.out.println(c); 
+				System.out.println(); 
+				
+				System.out.println("brokenOffL: " + brokenOffL);
+				System.out.println("brokenOffR: " + brokenOffR);
+				System.out.println("lChain: " + lChain);
+				System.out.println("rChain: " + rChain);
+				throw new Exception("adding odd to even in processOddConnection1"); 
+			}
+			
 		}
 		if (brokenOffR.length() > 0) {
-			even.add(brokenOffR); 
+			if (brokenOffR.get(0) >= N) {
+				brokenOffR.reverse(); 
+			}
+			
+			addToList(brokenOffR, even, "processOddConnection2"); 
 		}
 		
 		
 		// connect the chains and add to even
 		lChain.connect(rChain);
-		even.add(lChain);
+		addToList(lChain, even, "processOddConnection3");
+		
+		steps.add(1);
 		
 		return true;
 	}
-	
+
 	/**
-	 * This finds an occurrence of a crossed connection and returns a list of the two connectiosn: 
-	 * [leftConnection, rightConnection]
+	 * This processes shared even - crossed and shared even - uncrossed - bridge connections
+	 * @param connectionMap
 	 * @return
-	 * @throws Exception 
+	 * @throws Exception
 	 */
-	public boolean processSharedEven(Map<Integer, List<List<Connection>>> connectionMap) throws Exception {
+	public boolean processSharedEven_crossedOrBridge(Map<Integer, List<List<Connection>>> connectionMap, 
+			List<Integer> steps) throws Exception {
 		Connection bridge = null;
 		Connection bridgeLeft = null; 
 		Connection bridgeRight = null;
@@ -216,7 +310,7 @@ public class SortedGraph {
 				Connection firstRight = rightConnections.get(0); 
 				if (lastLeft.getRIndex() > firstRight.getLIndex()) {
 					// Crossed connection!
-					processCrossedConnection(lastLeft, firstRight);
+					processCrossedConnection(lastLeft, firstRight, steps);
 					return true; 
 				} else if (bridge == null) {
 					// there exists an uncrossed connection -- see if it has a bridge. 
@@ -228,22 +322,168 @@ public class SortedGraph {
 		}
 		
 		if (bridge != null) {
-			processBridge(bridgeLeft, bridgeRight, bridge); 
+			processSharedBridge(bridgeLeft, bridgeRight, bridge, steps); 
 			return true;
 		}
 		
 		// No shared even
-		System.out.println("No shared even found");
+		//System.out.println("No shared even found");
 		return false;
 	}
 	
+	public boolean findAndProcessUnshared_bridge(Map<Integer, List<List<Connection>>> connectionMap, 
+			List<Integer> steps) throws Exception {
+		Map<Integer, Connection> potentialBridgesMap = new HashMap<Integer, Connection>(); 
+		Map<Integer, Integer> idToIndex = new HashMap<Integer, Integer>(); 
+		Map<Integer, Chain> idToChain = new HashMap<Integer, Chain>(); 
+		
+		// loop through even chains and compile a map of all the nodes to the left of
+		// a connection to an lTerm
+		for (Integer evenChainId : connectionMap.keySet()) {
+			List<List<Connection>> connectionLists = connectionMap.get(evenChainId);
+			List<Connection> lTermConnections = connectionLists.get(0);
+			List<Connection> rTermConnections = connectionLists.get(1);
+			Chain evenChain = chainMap.get(evenChainId);
+			
+			if (!lTermConnections.isEmpty()) {
+				Connection rightmostToLTerm = lTermConnections.get(lTermConnections.size() - 1);
+				for (int i = 0; i < rightmostToLTerm.getRIndex(); i += 2) {
+					potentialBridgesMap.put(evenChain.get(i), rightmostToLTerm);
+					idToIndex.put(evenChain.get(i), i);
+					idToChain.put(evenChain.get(i), evenChain);
+				}
+			}
+		}
+		
+		Set<Integer> potentialBridges = potentialBridgesMap.keySet(); 
+		for (Integer evenChainId : connectionMap.keySet()) {
+			List<List<Connection>> connectionLists = connectionMap.get(evenChainId);
+			List<Connection> lTermConnections = connectionLists.get(0); 
+			List<Connection> rTermConnections = connectionLists.get(1);
+			Chain evenChain = chainMap.get(evenChainId); 
+			
+			if (!rTermConnections.isEmpty()) {
+				Connection leftmostToRTerm = rTermConnections.get(0); 
+				for (int i = leftmostToRTerm.getLIndex() + 1; i < evenChain.length(); i += 2) {
+					for (Vertex v : vertexList[evenChain.get(i)].getAdjList()) {
+						if (potentialBridges.contains(v.getId())) {
+							// found a bridge! from v to evenChain.get(i)
+							Vertex lVert = v; 
+							Vertex rVert = vertexList[evenChain.get(i)];
+							int lIndex = idToIndex.get(v.getId());
+							int rIndex = i; 
+							Chain lChain = idToChain.get(v.getId());
+							Chain rChain = evenChain; 
+							
+							Connection bridge = new Connection(lVert, rVert, lIndex, rIndex, lChain, rChain);
+							Connection connectionToLeft = potentialBridgesMap.get(lVert.getId());
+							processUnshared_bridge(connectionToLeft, leftmostToRTerm, bridge);
+							steps.add(4); 
+							return true; 
+						}
+					}
+				}
+			}
+		}
+		
+		// No bridge found
+		return false; 
+	}
+	
+	public boolean findAndProcessShared_noBridge(Map<Integer, List<List<Connection>>> connectionMap, 
+			List<Integer> steps) throws Exception {
+		for (Integer evenId : connectionMap.keySet()) {
+			List<Connection> leftConnections = connectionMap.get(evenId).get(0);
+			List<Connection> rightConnections = connectionMap.get(evenId).get(1); 
+			
+			if (!leftConnections.isEmpty() && !rightConnections.isEmpty()) {
+				processShared_noBridge(leftConnections.get(leftConnections.size() - 1), 
+						rightConnections.get(0));
+				steps.add(5); 
+				return true; 
+			}
+		}
+		
+		// no shared even found
+		return false; 
+	}
+	
+	/**
+	 * This finds the even with the rightmost connection to an l and the even with the leftmost 
+	 * connection to an r, and processes those.
+	 * @throws Exception 
+	 */
+	public boolean findAndProcessUnshared_noBridge(Map<Integer, List<List<Connection>>> connectionMap, 
+			List<Integer> steps) throws Exception {
+		
+		if (connectionMap.size() < 2) {
+			return false; // error!
+		}
+		
+		Connection leftToEven = null; 
+		int leftToEvenIndex = -1; 
+		Connection rightToEven = null; 
+		int rightToEvenIndex = Integer.MAX_VALUE; 
+		for (List<List<Connection>> connectionList : connectionMap.values()) {
+			List<Connection> connectionsToL = connectionList.get(0); 
+			List<Connection> connectionsToR = connectionList.get(1); 
+			
+			if (!connectionsToL.isEmpty()) {
+				if (connectionsToL.get(connectionsToL.size() - 1).getRIndex() > leftToEvenIndex) {
+					leftToEven = connectionsToL.get(connectionsToL.size() - 1);
+					leftToEvenIndex = connectionsToL.get(connectionsToL.size() - 1).getRIndex(); 
+				}
+			} else if (!connectionsToR.isEmpty()) {
+				if (connectionsToR.get(0).getLIndex() < rightToEvenIndex) {
+					rightToEven = connectionsToR.get(0); 
+					rightToEvenIndex = connectionsToR.get(0).getLIndex(); 
+				}
+			}
+		}
+		
+		if (leftToEven == null) {
+			System.out.println("leftToEven is null");
+		}
+		if (rightToEven == null) {
+			System.out.println("rightToEven is null");
+		}
+		
+		if (leftToEven == null || rightToEven == null) {
+			System.out.println("\nLTerms");
+			for (Chain c : lTerm) {
+				System.out.println("chain: " + c);
+				for (Integer v : c.getVertexList()) {
+					System.out.println(vertexList[v].getAdjList());
+				}
+			}
+			
+			System.out.println("\nRTerms");
+			for (Chain c : rTerm) {
+				System.out.println("chain: " + c);
+				for (Integer v : c.getVertexList()) {
+					System.out.println(vertexList[v].getAdjList());
+				}
+			}
+			
+			return false; 
+		}
+		
+		processUnshared_noBridge(leftToEven, rightToEven);
+		
+		steps.add(6); 
+		return true; 
+	}
+	
+	/**
+	 * Bridge should be from l to r (where index of l < index of r)
+	 */
 	private Connection findBridgeConnection(Connection leftToEven, Connection rightToEven) {
 		Chain evenChain = leftToEven.getRChain(); 
 		int lowerIndex = leftToEven.getRIndex(); 
 		int upperIndex = rightToEven.getLIndex();
 		
 		Map<Integer, Integer> upperVertices = new HashMap<Integer, Integer>(); 
-		for (int i = upperIndex + 1; i < evenChain.length(); i++) {
+		for (int i = upperIndex + 1; i < evenChain.length(); i += 2) {
 			upperVertices.put(evenChain.get(i), i); 
 		}
 		
@@ -261,16 +501,19 @@ public class SortedGraph {
 		return null;
 	}
 	
-	private void processCrossedConnection(Connection leftToEven, Connection rightToEven) {
+	private void processCrossedConnection(Connection leftToEven, Connection rightToEven, List<Integer> steps) throws Exception {
 		Chain leftChain = leftToEven.getLChain(); 
 		Chain rightChain = rightToEven.getRChain(); 
 		Chain evenChain = leftToEven.getRChain(); 
+		markNodes(leftChain, 2);
+		markNodes(rightChain, 2);
+		markNodes(evenChain, 2);
 		
-		System.out.println(); 
+		/*System.out.println(); 
 		System.out.println("Processing crossed connection:");
 		System.out.println("leftToEven\n" + leftToEven);
 		System.out.println("rightToEven\n" + rightToEven);
-		System.out.println(); 
+		System.out.println(); */
 		
 		// Remove leftChain and rightChain from the odd chain list and 
 		// evenChain from the even list
@@ -279,19 +522,20 @@ public class SortedGraph {
 		even.remove(evenChain); 
 		
 		// Break the chains and add them all to the even list
-		Chain brokenOffL = leftChain.breakAfter(leftToEven.getLIndex());
-		Chain brokenOffR = rightChain.breakBefore(rightToEven.getRIndex());
-		Chain brokenOffE1 = evenChain.breakBefore(rightToEven.getLIndex());
-		Chain brokenOffE2 = evenChain.breakAfter(leftToEven.getRIndex() - rightToEven.getLIndex());
+		List<Chain> addToEven = new ArrayList<Chain>(); 
+		addToEven.add(leftChain.breakAfter(leftToEven.getLIndex()));
+		addToEven.add(rightChain.breakBefore(rightToEven.getRIndex()));
+		addToEven.add(evenChain.breakBefore(rightToEven.getLIndex()));
+		addToEven.add(evenChain.breakAfter(leftToEven.getRIndex() - rightToEven.getLIndex()));
 		
-		if (brokenOffL.length() > 0) 
-			even.add(brokenOffL);
-		if (brokenOffR.length() > 0)
-			even.add(brokenOffR);
-		if (brokenOffE1.length() > 0)
-			even.add(brokenOffE1);
-		if (brokenOffE2.length() > 0)
-			even.add(brokenOffE2);
+		for (Chain c : addToEven) {
+			if (c.length() > 0) {
+				if (c.get(0) >= N) {
+					c.reverse(); 
+				}
+				addToList(c, even, "processCrossedConnection1"); 
+			}
+		}
 		
 		// connect the chains. Everything will end up in 
 		evenChain.reverse(); 
@@ -299,13 +543,18 @@ public class SortedGraph {
 		leftChain.connect(rightChain); 
 		
 		// add this new, conglomerate chain to even
-		even.add(leftChain);
+		addToList(leftChain, even, "processCrossedConnection2"); 
+		
+		steps.add(2); 
 	}
 	
-	private void processBridge(Connection leftToEven, Connection rightToEven, Connection bridge) {
+	private void processSharedBridge(Connection leftToEven, Connection rightToEven, Connection bridge, List<Integer> steps) throws Exception {
 		Chain leftChain = leftToEven.getLChain(); 
 		Chain rightChain = rightToEven.getRChain(); 
 		Chain evenChain = bridge.getLChain(); 
+		markNodes(leftChain, 3);
+		markNodes(rightChain, 3);
+		markNodes(evenChain, 3);
 		
 		// Remove leftChain and rightChain from the odd chain list and
 		// evenChain from the even list
@@ -313,27 +562,32 @@ public class SortedGraph {
 		rTerm.remove(rightChain); 
 		even.remove(evenChain); 
 		
-		System.out.println(); 
-		System.out.println("Processing bridge connection:");
+		/*System.out.println(); 
+		System.out.println("Processing shared bridge connection:");
 		System.out.println("leftToEven\n" + leftToEven);
 		System.out.println("rightToEven\n" + rightToEven);
 		System.out.println("bridge\n" + bridge);
-		System.out.println();
+		System.out.println();*/
 		
 		// Break the chains and add all pieces to even list
-		Chain brokenOffL = leftChain.breakAfter(leftToEven.getLIndex());
-		Chain brokenOffR = rightChain.breakBefore(rightToEven.getRIndex());
-		Chain brokenOffE2 = evenChain.breakAfter(bridge.getRIndex());
-		Chain brokenOffE1 = evenChain.breakBefore(bridge.getLIndex());
+		List<Chain> addToEven = new ArrayList<Chain>(); 
+		addToEven.add(leftChain.breakAfter(leftToEven.getLIndex()));
+		addToEven.add(rightChain.breakBefore(rightToEven.getRIndex()));
+		addToEven.add(evenChain.breakAfter(bridge.getRIndex()));
+		addToEven.add(evenChain.breakBefore(bridge.getLIndex()));
 		
-		if (brokenOffL.length() > 0)
-			even.add(brokenOffL);
-		if (brokenOffR.length() > 0)
-			even.add(brokenOffR);
-		if (brokenOffE1.length() > 0)
-			even.add(brokenOffE1);
-		if (brokenOffE2.length() > 0)
-			even.add(brokenOffE2); 
+		for (Chain c : addToEven) {
+			if (c.length() > 0) {
+				if (c.get(0) >= N) {
+					c.reverse(); 
+				}
+				//System.out.println(c); 
+				if (c.length() % 2 != 0) {
+					throw new Exception("adding odd chain to even in processSharedBridge1");
+				}
+				addToList(c, even, "processSharedBridge1"); 
+			}
+		}
 		
 		int numBrokenOffFront = bridge.getLIndex(); 
 		// Break the middle out of the remaining chain -- the middle is in "evenChain"
@@ -350,6 +604,150 @@ public class SortedGraph {
 		
 		// add this new, conglomerate chain to the even list
 		even.add(leftChain);
+		
+		steps.add(3);
+	}
+	
+	private void processUnshared_bridge(Connection leftToEven, Connection rightToEven, Connection bridge) throws Exception {
+		Chain leftChain = leftToEven.getLChain(); 
+		Chain rightChain = rightToEven.getRChain(); 
+		Chain leftEvenChain = leftToEven.getRChain(); 
+		Chain rightEvenChain = rightToEven.getLChain(); 
+		markNodes(leftChain, 4);
+		markNodes(rightChain, 4);
+		markNodes(leftEvenChain, 4);
+		markNodes(rightEvenChain, 4);
+		
+		// Remove leftChain and rightChain from the odd chain list and
+		// both even chains from the even list
+		lTerm.remove(leftChain);
+		rTerm.remove(rightChain); 
+		even.remove(leftEvenChain); 
+		even.remove(rightEvenChain);
+		
+		/*System.out.println(); 
+		System.out.println("Processing unshared bridge connection:");
+		System.out.println("leftToEven\n" + leftToEven);
+		System.out.println("rightToEven\n" + rightToEven);
+		System.out.println("bridge\n" + bridge);
+		System.out.println();*/
+		
+		// Break the chains and add all pieces to even list
+		List<Chain> addToEven = new ArrayList<Chain>(); 
+		addToEven.add(leftChain.breakAfter(leftToEven.getLIndex()));
+		addToEven.add(rightChain.breakBefore(rightToEven.getRIndex()));
+		addToEven.add(leftEvenChain.breakAfter(leftToEven.getRIndex()));
+		addToEven.add(leftEvenChain.breakBefore(bridge.getLIndex())); 
+		addToEven.add(rightEvenChain.breakAfter(bridge.getRIndex()));
+		addToEven.add(rightEvenChain.breakBefore(rightToEven.getLIndex()));
+		
+		for (Chain c : addToEven) {
+			if (c.length() > 0) {
+				if (c.get(0) >= N) {
+					c.reverse(); 
+				}
+				addToList(c, even, "processUnshared_bridge1");
+			}
+		}
+		
+		// Connect the chain!
+		leftEvenChain.reverse();
+		leftChain.connect(leftEvenChain);
+		rightEvenChain.reverse(); 
+		leftChain.connect(rightEvenChain); 
+		leftChain.connect(rightChain);
+		
+		// add this new, conglomerate chain to the even list
+		addToList(leftChain, even, "processUnshared_bridge2"); 
+	}
+	
+	private void processShared_noBridge(Connection leftToEven, Connection rightToEven) throws Exception {
+		Chain leftChain = leftToEven.getLChain(); 
+		Chain rightChain = rightToEven.getRChain(); 
+		Chain evenChain = leftToEven.getRChain(); 
+		markNodes(leftChain, 5);
+		markNodes(rightChain, 5);
+		markNodes(evenChain, 5);
+		
+		// Remove even chain from even list
+		even.remove(evenChain); 
+		
+		/*System.out.println(); 
+		System.out.println("Processing shared - no bridge connection:");
+		System.out.println("leftToEven\n" + leftToEven);
+		System.out.println("rightToEven\n" + rightToEven);
+		System.out.println();*/
+		
+		// Break the chains and add all pieces to even list
+		List<Chain> addToEven = new ArrayList<Chain>(); 
+		addToEven.add(leftChain.breakAfter(leftToEven.getLIndex()));
+		addToEven.add(rightChain.breakBefore(rightToEven.getRIndex()));
+		Chain addToLeft = evenChain.breakBefore(rightToEven.getLIndex());
+		Chain addToRight = evenChain; 
+		addToEven.add(addToLeft.breakAfter(leftToEven.getRIndex()));
+
+		
+		for (Chain c : addToEven) {
+			if (c.length() > 0) {
+				if (c.get(0) >= N) {
+					c.reverse(); 
+				}
+				addToList(c, even, "processShared_noBridge");
+			}
+		}
+		
+		// Connect the chain!
+		addToLeft.reverse(); 
+		incrementEvenToOddCount(addToLeft);
+		leftChain.connect(addToLeft);
+		rightChain.reverse(); 
+		incrementEvenToOddCount(addToRight);
+		rightChain.connect(addToRight);
+	}
+	
+	private void processUnshared_noBridge(Connection leftToEven, Connection rightToEven) throws Exception {
+		Chain leftChain = leftToEven.getLChain(); 
+		Chain rightChain = rightToEven.getRChain(); 
+		Chain leftEvenChain = leftToEven.getRChain(); 
+		Chain rightEvenChain = rightToEven.getLChain(); 
+		markNodes(leftChain, 6); 
+		markNodes(rightChain, 6); 
+		markNodes(leftEvenChain, 6); 
+		markNodes(rightEvenChain, 6);
+		
+		// Remove even chains from even list
+		even.remove(leftEvenChain);
+		even.remove(rightEvenChain);
+		
+		/*System.out.println(); 
+		System.out.println("Processing unshared - no bridge connection:");
+		System.out.println("leftToEven\n" + leftToEven);
+		System.out.println("rightToEven\n" + rightToEven);
+		System.out.println();*/
+		
+		// Break the chains and add all pieces to even list
+		List<Chain> addToConsideredEven = new ArrayList<Chain>(); 
+		addToConsideredEven.add(leftChain.breakAfter(leftToEven.getLIndex()));
+		addToConsideredEven.add(rightChain.breakBefore(rightToEven.getRIndex()));
+		addToConsideredEven.add(leftEvenChain.breakAfter(leftToEven.getRIndex()));
+		addToConsideredEven.add(rightEvenChain.breakBefore(rightToEven.getLIndex()));
+		
+		for (Chain c : addToConsideredEven) {
+			if (c.length() > 0) {
+				if (c.get(0) >= N) {
+					c.reverse(); 
+				}
+				addToList(c, consideredEven, "processUnshared_noBridge"); 
+			}
+		}
+		
+		// Connect the chain!
+		leftEvenChain.reverse(); 
+		incrementEvenToOddCount(leftEvenChain);
+		leftChain.connect(leftEvenChain);
+		rightChain.reverse(); 
+		incrementEvenToOddCount(rightEvenChain);
+		rightChain.connect(rightEvenChain);
 	}
 	
 	// Looking for the connection to the highest index in an even chain with a left chain.
@@ -391,7 +789,7 @@ public class SortedGraph {
 			
 			Chain evenChain = even.get(j);
 			// Orient the chain! Left vertex first. 
-			if (!(evenChain.length() == 0) && evenChain.get(0) >= N) {
+			if (evenChain.length() > 0 && evenChain.getStart() >= N) {
 				evenChain.reverse(); 
 			}
 		
@@ -438,6 +836,18 @@ public class SortedGraph {
 		}
 		
 		return connectionMap; 
+	}
+	
+	private void markNodes(Chain chain, int connectionType) {
+		for (Integer node : chain.getVertexList()) {
+			affectedCount[node][connectionType - 1]++; 
+		}
+	}
+	
+	private void incrementEvenToOddCount(Chain chain) {
+		for (Integer node : chain.getVertexList()) {
+			evenToOddCount[node]++; 
+		}
 	}
 	
 	public boolean hasOddChains() {

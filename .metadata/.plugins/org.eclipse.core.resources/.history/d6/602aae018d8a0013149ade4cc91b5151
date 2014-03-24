@@ -1,0 +1,1163 @@
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Random; 
+import java.util.Set;
+import java.util.Collections;
+
+
+public class Bipartite {
+	private int N; 
+	private int d; 
+	private Vertex[] vertexList;
+	
+	public Bipartite(int N, int d) {
+		this.N = N;
+		this.d = d; 
+		
+		vertexList = new Vertex[N * 2];
+		for (int i = 0; i < N * 2; i++) {
+			vertexList[i] = new Vertex(i);
+		}
+		
+		generateGraph(N, d, vertexList);
+		for (Vertex v : vertexList) {
+			Collections.sort(v.getAdjList());
+		}
+	}
+	
+	public Bipartite(int N, int d, boolean empty) {
+		this.N = N;
+		this.d = d;
+		
+		vertexList = new Vertex[N * 2];
+		for (int i = 0; i < N * 2; i++) {
+			vertexList[i] = new Vertex(i);
+		}
+		if (!empty) {
+			generateGraph(N, d, vertexList);
+		}
+	}
+	
+	public int getN() {
+		return N;
+	}
+	
+	public int getD() {
+		return d; 
+	}
+	
+	public Vertex[] getVertexList() {
+		return vertexList; 
+	}
+	
+	public Vertex getVertex(int v) {
+		return vertexList[v];
+	}
+	
+	public void addEdge(int v1, int v2) {
+		int left = (v1 < N) ? v1 : v2; 
+		int right = (v1 < N) ? v2 : v1; 
+		
+		vertexList[left].addAdj(vertexList[right]);
+		vertexList[right].addAdj(vertexList[left]);
+	}
+	
+	public void addEdge(Vertex v1, Vertex v2) {
+		addEdge(v1.getId(), v2.getId());
+	}
+	
+	
+	private void generateGraph(int N, int d, Vertex[] vertexList) {
+		int[] rightSide = new int[N * d];
+		int k = 0; 
+		for (int i = 0; i < N; i++) {
+			for (int j = 0; j < d; j++) {
+				rightSide[k] = N + i;
+				k++; 
+			}
+		}
+		
+		shuffleArray(rightSide);
+		// get rid of multiedges!
+		/*while (hasMultiedges(rightSide)) {
+			shuffleArray(rightSide);
+		}*/
+		
+		
+		k = 0; 
+		for (int left = 0; left < N; left++) {
+			for (int adj = 0; adj < d; adj++) {
+				Vertex leftV = vertexList[left];
+				Vertex rightV = vertexList[rightSide[k]];
+				leftV.addAdj(rightV);
+				rightV.addAdj(leftV);
+				k++;
+			}
+		}
+	}
+	
+	// returns true if this graph will have multiedges
+	private boolean hasMultiedges(int[] array) {
+		Set<Integer> contains = new HashSet<Integer>(); 
+		for (int i = 0; i < array.length; i++) {
+			if (i % d == 0) {
+				contains = new HashSet<Integer>(); 
+			}
+			if (contains.contains(array[i])) {
+				return true; 
+			}
+			contains.add(array[i]);
+		}
+		return false;
+	}
+	
+	private void shuffleArray(int[] ar) {
+	    Random rnd = new Random();
+	    for (int i = ar.length - 1; i > 0; i--)
+	    {
+	      int index = rnd.nextInt(i + 1);
+	      // Simple swap
+	      int a = ar[index];
+	      ar[index] = ar[i];
+	      ar[i] = a;
+	    }
+	}
+	
+	public String toString() {
+		StringBuffer buf = new StringBuffer(); 
+		for (int i = 0; i < N * 2; i++) {
+			buf.append(vertexList[i].toString());
+		}
+		
+		return buf.toString(); 
+	}
+	
+	/**
+	 * Puts the edges from the passed in Bipartite into this.
+	 * Passed in Bipartite is not affected.
+	 */
+	public void combine(Bipartite graph) {
+		for (int i = 0; i < N; i++) {
+			Vertex v = graph.getVertexList()[i];
+			for (Vertex adj : v.getAdjList()) {
+				this.addEdge(v.getId(), adj.getId());
+			}
+		}
+	}
+	
+	/**
+	 * Takes the initial Bipartite and splits it up into a list of Bipartites of powers of 2. 
+	 * If the multiplicity isn't a power of 2, then it gets broken up into its powers -- 
+	 * Ex: mult = 5 will be split to mult = 4 and mult = 1. 
+	 * 
+	 * There will be floor(log(d)) Bipartites in the list.
+	 */
+	public ArrayList<Bipartite> partitionByDegree() {
+		ArrayList<Bipartite> partition = new ArrayList<Bipartite>(); 
+		for (int i = 0; i < (int) logOfBase(2, d); i++) {
+			partition.add(new Bipartite(N, d, true /* empty*/));
+		}
+		
+		for (int k = 0; k < vertexList.length / 2; k++) {
+			Vertex v = vertexList[k];
+			
+			Set<Integer> lookedAt = new HashSet<Integer>(); 
+			for (int i = 0; i < v.getAdjList().size(); i++) {
+				if (!lookedAt.contains(v.getAdjList().get(i).getId())) {
+					int count = 1; 
+					for (int j = i + 1; j < v.getAdjList().size(); j++) {
+						if (v.getAdjList().get(i).getId() == v.getAdjList().get(j).getId()) {
+							count++; 
+						}
+					}
+					
+					// Watch out! Are these always going to be powers of 2??
+					//Bipartite curr = partition.get((int) logOfBase(2, count));
+					//Bipartite curr = partition.get(count - 1);
+					int power = (int) logOfBase(2, d); 
+					while (count > 0) {
+						Bipartite curr = partition.get(power);
+					}
+ 					// Note: This doesn't actually affect v and v.get(i) -- it adds the edge
+					// to the vertices with the same IDs in the curr Bipartite
+					curr.addEdge(v, v.getAdjList().get(i));
+					lookedAt.add(v.getAdjList().get(i).getId());
+				}
+			}
+		}
+		
+		return partition;
+	}
+	
+	public void dfs(Bipartite singleGraph, Bipartite doubleGraph) {
+		Vertex curr = vertexList[0];
+		ArrayList<Vertex> dfsTree = new ArrayList<Vertex>(); 
+		dfsTree.add(curr);
+		Vertex next = null; 
+		
+		while (curr != null) {
+			//System.out.println("curr: " + curr.getId()); 
+			
+			if (dfsTree.indexOf(curr) < dfsTree.size() - 1) {
+				// cycle!
+				int index = dfsTree.indexOf(curr); 
+				next = processCycle(dfsTree, index, doubleGraph);
+			} else if (curr.getAdjList().isEmpty()) {
+				// curr has nothing adjacent left -- dead end!! 
+				if (dfsTree.size() == 1) {
+					// nowhere to back up to. Either done or need to start somewhere new. 
+					dfsTree.remove(0); // empty dfs tree
+					next = getNextWithAdj(); 
+					dfsTree.add(next);
+				} else {
+					dfsTree.remove(dfsTree.size() - 1);
+					next = dfsTree.get(dfsTree.size() - 1);
+					//System.out.println("adding Edge (" + next.getId() + ", " + curr.getId() + ") to singleGraph");
+					singleGraph.addEdge(next.getId(), curr.getId());
+				}
+			} else {
+				next = curr.getAdjList().remove(0);
+				next.getAdjList().remove(curr);
+				dfsTree.add(next);
+			}
+			//System.out.println("dfs Tree: " + dfsTree);
+			curr = next; 
+		}
+		return; 
+	}
+	
+	public List<Set<Vertex>> getConnectedComponents() {
+		List<Set<Vertex>> components = new ArrayList<Set<Vertex>>(); 
+		
+		Set<Integer> remaining = new HashSet<Integer>(); 
+		for (int i = 0; i < N * 2; i++) {
+			remaining.add(i);
+		}
+		
+		while (!remaining.isEmpty()) {
+			Integer start = (Integer) remaining.toArray()[0]; 
+			Queue<Vertex> queue = new PriorityQueue<Vertex>(); 
+			queue.add(vertexList[start]); 
+			Set<Vertex> visited = new HashSet<Vertex>(); 
+			
+			while (!queue.isEmpty()) {
+				Vertex curr = queue.poll(); 
+				if (!visited.contains(curr)) {
+					remaining.remove(curr.getId());
+					
+					for (Vertex v : curr.getAdjList()) {
+						if (!visited.contains(v)) {
+							queue.add(v);
+						}
+					}
+					
+					visited.add(curr);
+				}
+			}
+			
+			// found connected component -- add this set to the list
+			components.add(visited);
+		}
+		
+		return components; 
+	}
+	
+	private Vertex processCycle(ArrayList<Vertex> dfsTree, int index, Bipartite doubleGraph) {
+		//System.out.println("processing cycle");
+		for (int i = index; i < dfsTree.size() - 1; i += 2) {
+			//System.out.println("adding Edge (" + dfsTree.get(i).getId() + ", " + dfsTree.get(i + 1) + ") to doubleGraph"); 
+			doubleGraph.addEdge(dfsTree.get(i).getId(), dfsTree.get(i + 1).getId());
+		}
+		
+		while (dfsTree.size() > index + 1) {
+			dfsTree.remove(index + 1);
+		}
+		
+		return dfsTree.get(index);
+	}
+	
+	private Vertex getNextWithAdj() {
+		for (Vertex v : vertexList) {
+			if (!v.getAdjList().isEmpty()) {
+				return v;
+			}
+		}
+		return null; 
+	}
+	
+	private static double logOfBase(int base, int num) {
+	    return Math.log(num) / Math.log(base);
+	}
+	
+	public List<List<Edge>> dummyCycles() throws Exception {
+		List<List<Edge>> cycles = new ArrayList<List<Edge>>(); 
+		Set<Integer> needsDummy = new HashSet<Integer>(); 
+		for (int i = 0; i < N * 2; i++) {
+			needsDummy.add(i);
+		}
+		
+		boolean isDummy = false; 
+		while (!needsDummy.isEmpty()) {
+			int start = getFirstWithoutDummy(needsDummy); 
+			List<Edge> currCycle = new ArrayList<Edge>(); 
+			Vertex curr = vertexList[start];
+			Edge.Direction currDirection = (start < N) ? Edge.Direction.L_TO_R : Edge.Direction.R_TO_L; 
+			
+			System.out.println("start: " + start);
+			
+			while (curr != null) {
+				Vertex next = null; 
+				while (!curr.getAdjList().isEmpty() && next == null) {
+					next = curr.getAdjList().remove(0);
+					if (!needsDummy.contains(next.getId())) {
+						next = null; 
+					}
+				}
+				
+				System.out.println("next: " + next);
+				
+				if (curr.getAdjList().isEmpty() && next == null) {
+					// dead end!
+					if (currCycle.size() % 2 == 0 && canCloseWithDummy(currCycle)) {
+						// even numbered cycle -- start on a new cycle
+						// mark everything in the cycle as having a dummy
+						cycles.add(currCycle);
+						curr = null; 
+						
+						for (Edge e : currCycle) {
+							needsDummy.remove(e.getLeft());
+							needsDummy.remove(e.getRight());
+						}
+					} else if (currCycle.size() % 2 != 0){
+						// odd numbered cycle -- add a dummy to the next dummyless vertex
+						next = vertexList[getFirstWithoutDummy(needsDummy)];
+						isDummy = true; 
+						//currCycle.add(new Edge(curr, next, true /* isDummy */, currDirection)); 
+						//currDirection = currDirection.flipDirection(); 
+					} else {
+						// even numbered cycle but cannot close with a dummy!
+						throw new Exception("STEFFI  ERROR");
+					}
+				} else {
+					isDummy = false; 
+					//currCycle.add(new Edge(curr, next, false /* isDummy */, currDirection)); 
+					//currDirection = currDirection.flipDirection(); 
+					//next.getAdjList().remove(curr); 
+					//curr.getAdjList().remove(next);
+				}
+				
+				if (next != null) {
+					if (currCycle.contains(next)) {
+						// this would finish the cycle! 
+						currCycle.add(new Edge(curr, next, isDummy, currDirection));
+						cycles.add(currCycle);
+						next = null; 
+						
+						currDirection = (next.getId() < N) ? Edge.Direction.L_TO_R : Edge.Direction.R_TO_L; 
+					} else {
+						currCycle.add(new Edge(curr, next, isDummy, currDirection)); 
+						currDirection = currDirection.flipDirection(); 
+						next.getAdjList().remove(curr); 
+						curr.getAdjList().remove(next);
+					}
+				}
+				
+				curr = next;
+			}
+			
+		}
+		
+		return cycles; 
+	}
+	
+	// Performs the chaining algorithm: Iteration 1. 
+	// Eventually you'll need to generalize this to handle higher degrees ... 
+	// *** CAUTION: THIS DESTROYS THE GRAPH ***
+	// 1. Pick an unattached vertex, and attach it to the first vertex you can using an 
+	//    edge from singleGraph. 
+	// 2. If there are no unattached vertices, pick something off the first odd chain. 
+	// 3. Repeat 1, 2 until all chains are of even length. 
+	public void chaining(List<List<Vertex>> chains) {
+		List<Vertex> unattached = getUnattached(chains);
+		
+		while (!allEven(chains)) {
+			Vertex curr = null; 
+			if (!unattached.isEmpty()) {
+				// Pick an unattached vertex
+				curr = unattached.remove(0);
+			} else {
+				// Take something off an odd chain
+				for (List<Vertex> chain : chains) {
+					if (chain.size() % 2 != 0) {
+						curr = chain.remove(0);
+						break;
+					}
+				}
+			}
+			
+			// find this vertex in the mult = 1 graph
+			curr = this.vertexList[curr.getId()];
+			
+			if (curr.getAdjList().isEmpty()) {
+				System.out.println("ERROR: adj list empty for Vertex " + curr); 
+				return; 
+			}
+			
+			System.out.println("curr: " + curr);
+			
+			Vertex next = curr.getAdjList().remove(0);
+			
+			System.out.println("connecting to next: " + next);
+			
+			// find next in a chain
+			List<Vertex> nextChain = null; 
+			int index = -1; 
+			for (List<Vertex> chain : chains) {
+				nextChain = chain; 
+				index = -1; 
+				for (int i = 0; i < chain.size(); i++) {
+					Vertex v = chain.get(i);
+					if (v.getId() == next.getId()) {
+						index = i; 
+						break;
+					}
+				}
+				
+				if (index != -1) {
+					break;
+				}
+			}
+			
+			// break the chain
+			if (index < nextChain.size() - 1) {
+				List<Vertex> newChain = new ArrayList<Vertex>(); 
+				for (int i = index + 1; i < nextChain.size();) {
+					newChain.add(nextChain.remove(i));
+				}
+				chains.add(newChain);
+			}
+			nextChain.add(curr);
+		}
+	}
+	
+	// Performs the chaining algorithm: Iteration 2. 
+	// Eventually you'll need to generalize this to handle higher degrees ... 
+	// *** CAUTION: THIS DESTROYS THE GRAPH ***
+	// Chaining algorithm, except always attach to a neighbor in an odd graph when you can!
+	public void chaining_tryOddFirst(List<List<Vertex>> chains) throws Exception {
+		List<Vertex> unattached = getUnattached(chains);
+		
+		while (!allEven(chains)) {
+			Vertex curr = null; 
+			if (!unattached.isEmpty()) {
+				// Pick an unattached vertex
+				curr = unattached.remove(0);
+			} else {
+				// Take something off an odd chain
+				for (List<Vertex> chain : chains) {
+					if (chain.size() % 2 != 0) {
+						curr = chain.remove(0);
+						break;
+					}
+				}
+			}
+			
+			// find this vertex in the mult = 1 graph
+			curr = this.vertexList[curr.getId()];
+			
+			if (curr.getAdjList().isEmpty()) {
+				//System.out.println("ERROR: adj list empty for curr vertex " + curr); 
+				System.out.println("curr: " + curr);
+				System.out.println("chains at failure:");
+				for (List<Vertex> chain : chains) {
+					for (Vertex v : chain) {
+						System.out.print(v.getId() + ", ");
+					}
+					System.out.print("\n");
+				}
+				throw new Exception("adj list empty for curr vertex");
+				//return; 
+			}
+			
+			System.out.println("curr: " + curr);
+			
+			Vertex next = firstOddNeighbor(curr, chains, unattached);
+			if (next == null) {
+				System.out.println("No neighbor in odd chain");
+				next = curr.getAdjList().remove(0);
+			}
+			
+			System.out.println("connecting to next: " + next);
+			
+			// find next in a chain
+			List<Vertex> nextChain = null; 
+			int index = -1; 
+			for (List<Vertex> chain : chains) {
+				nextChain = chain; 
+				index = -1; 
+				for (int i = 0; i < chain.size(); i++) {
+					Vertex v = chain.get(i);
+					if (v.getId() == next.getId()) {
+						index = i; 
+						break;
+					}
+				}
+				
+				if (index != -1) {
+					break;
+				}
+			}
+			
+			// break the chain
+			if (index < nextChain.size() - 1) {
+				List<Vertex> newChain = new ArrayList<Vertex>(); 
+				for (int i = index + 1; i < nextChain.size();) {
+					newChain.add(nextChain.remove(i));
+				}
+				chains.add(newChain);
+			}
+			nextChain.add(curr);
+		}
+	}
+	
+	// Performs the chaining algorithm: Iteration 3. 
+	// Eventually you'll need to generalize this to handle higher degrees ... 
+	// *** CAUTION: THIS DESTROYS THE GRAPH ***
+	// Chaining algorithm
+	// Always attach to a neighbor in an odd graph when you can!
+	// Links chains instead of removing stuff from odd chains
+	// Doesn't stop until there are no available odd things to match it to.
+	public void chaining_linkUp(List<List<Vertex>> chains) throws Exception {
+		List<Vertex> unattached = getUnattached(chains);
+
+		while (!allEven(chains)) {
+			Vertex curr = null; 
+			List<Vertex> currChain = null;
+			boolean head = true;
+			if (!unattached.isEmpty()) {
+				// Pick an unattached vertex
+				curr = this.vertexList[unattached.remove(0).getId()];
+				head = true;
+			} else {
+				// find the first available endpoint of an odd chain
+				int i = 0; 
+				boolean found = false;
+				while (i < chains.size() && !found) {
+					currChain = chains.get(i);
+					if (currChain.size() % 2 != 0) {
+						curr = this.vertexList[currChain.get(0).getId()];
+						head = true;
+						if (curr.getAdjList().isEmpty()) {
+							curr = this.vertexList[currChain.get(currChain.size() - 1).getId()];
+							head = false;
+							if (!curr.getAdjList().isEmpty()) {
+								//currChain.remove(currChain.size() - 1);
+							}
+						} else {
+							//currChain.remove(0);
+						}
+						found = !(curr.getAdjList().isEmpty());
+					}
+					i++; 
+				}
+				
+				if (!found) {
+					System.out.println("curr: " + curr);
+					System.out.println("chains at failure:");
+					for (List<Vertex> chain : chains) {
+						for (Vertex v : chain) {
+							System.out.print(v.getId() + ", ");
+						}
+						System.out.print("\n");
+					}
+					throw new Exception("No odd endpoints have adj verts remaining");
+				}
+			}
+			
+			System.out.println("curr: " + curr);
+			
+			//Vertex next = firstUnattachedNeighbor(curr, unattached);
+			/*if (next == null) {
+				next = firstOddNeighbor(curr, chains);
+			}*/
+			Vertex next = firstOddNeighbor(curr, chains, unattached);
+			if (next == null) {
+				System.out.println("No neighbor in odd chain");
+				next = curr.getAdjList().remove(0);
+			}
+			
+			System.out.println("connecting to next: " + next);
+			
+			// find next in a chain
+			List<Vertex> nextChain = null; 
+			int index = -1; 
+			for (List<Vertex> chain : chains) {
+				nextChain = chain; 
+				index = -1; 
+				for (int i = 0; i < chain.size(); i++) {
+					Vertex v = chain.get(i);
+					if (v.getId() == next.getId()) {
+						index = i; 
+						break;
+					}
+				}
+				
+				if (index != -1) {
+					break;
+				}
+			}
+			 if (currChain != null && currChain.equals(nextChain)) {
+				 System.out.println("trying to connect to itself -- not allowed. Move on.");
+			 } else {
+				System.out.println("index = " + index);
+				// break the chain
+				if (index < nextChain.size() - 1) {
+					List<Vertex> newChain = new ArrayList<Vertex>(); 
+					for (int i = index + 1; i < nextChain.size();) {
+						newChain.add(nextChain.remove(i));
+					}
+					chains.add(newChain);
+				}
+				
+				if (currChain == null) {
+					nextChain.add(curr);
+				} else {
+					if (head) {
+						nextChain.addAll(currChain);
+					} else {
+						nextChain.addAll(reverseList(currChain));
+					}
+					// START HERE!!
+					chains.remove(currChain);
+				}
+				
+				System.out.println("chains: ");
+				for (List<Vertex> chain : chains) {
+					printChain(chain);
+				}
+				for (Vertex v : unattached) {
+					System.out.print(v.getId());
+				}
+				System.out.println(); 
+			 }
+		}
+	}
+	
+	private List<Vertex> reverseList(List<Vertex> forward) {
+		List<Vertex> reversed = new ArrayList<Vertex>(); 
+		for (int i = forward.size() - 1; i >= 0; i--) {
+			reversed.add(forward.get(i));
+		}
+		return reversed;
+	}
+		
+	private Vertex firstOddNeighbor(Vertex curr, List<List<Vertex>> chains, List<Vertex> unattached) {
+		for (Vertex adj : curr.getAdjList()) {
+			List<Vertex> chain = findChain(adj, chains, unattached); 
+			if (chain.size() % 2 != 0) {
+				curr.getAdjList().remove(adj);
+				return adj; 
+			}
+		}
+		return null; 
+	}
+	
+	private Vertex firstUnattachedNeighbor(Vertex curr, List<Vertex> unattached) {
+		Set<Vertex> unattachedSet = new HashSet<Vertex>(unattached);
+		for (Vertex adj : curr.getAdjList()) {
+			if (unattachedSet.contains(adj)) {
+				return adj;
+			}
+		}
+		return null;
+	}
+	
+	private List<Vertex> findChain(Vertex vert, List<List<Vertex>> chains, List<Vertex> unattached) {
+		for (Vertex v : unattached) {
+			if (v.getId() == vert.getId()) {
+				List<Vertex> unattachedList = new ArrayList<Vertex>(); 
+				unattachedList.add(v); // am I adding the right vert? Does it matter?
+				unattached.remove(v);
+				chains.add(unattachedList);
+				return unattachedList;
+			}
+		}
+		
+		for (List<Vertex> chain : chains) {
+			for (Vertex v : chain) {
+				if (v.getId() == vert.getId()) {
+					return chain; 
+				}
+			}
+		}
+		System.out.println("could not find vert" + vert); 
+		System.out.println("in chains: "); 
+		for (List<Vertex> chain : chains) {
+			printChain(chain);
+		}
+		return null; // Vert not found
+	}
+	
+	private List<Vertex> getUnattached(List<List<Vertex>> chains) {
+		List<Vertex> unattached = new ArrayList<Vertex>(); 
+		Set<List<Vertex>> remove = new HashSet<List<Vertex>>(); 
+		for (List<Vertex> chain : chains) {
+			if (chain.size() == 1) {
+				//chains.remove(chain);
+				remove.add(chain);
+				unattached.add(chain.get(0));
+			} else if (chain.isEmpty()) {
+				remove.add(chain);
+			}
+		}
+		
+		for (List<Vertex> chain : remove) {
+			chains.remove(chain);
+		}
+		
+		return unattached; 
+	}
+	
+	private boolean allEven(List<List<Vertex>> chains) {
+		for (List<Vertex> chain : chains) {
+			if (chain.size() % 2 != 0) {
+				return false; 
+			}
+		}
+		
+		return true; 
+	}
+	
+	private List<List<Vertex>> chainifyGraph() {
+		List<List<Vertex>> chains = new ArrayList<List<Vertex>>(); 
+		Set<Integer> need = new HashSet<Integer>(); 
+		
+		Set<Vertex> endpoints = new HashSet<Vertex>(); 
+		for (int i = 0; i < N * 2; i++) {
+			if (vertexList[i].getAdjList().size() < 2) {
+				endpoints.add(vertexList[i]);
+			}
+			need.add(i);
+		}
+		
+		while (!endpoints.isEmpty()) {
+			Vertex curr = endpoints.iterator().next(); 
+			endpoints.remove(curr);
+			
+			Vertex prev = null; 
+			List<Vertex> chain = new ArrayList<Vertex>(); 
+			chain.add(curr);
+			need.remove(curr.getId());
+			while (curr.getAdjList().size() > 1 || (prev == null && curr.getAdjList().size() == 1)) {
+				Vertex next = curr.getAdjList().get(0);
+				if (next == prev && next != null) {
+					next = curr.getAdjList().get(1);
+				}
+				
+				chain.add(next);
+				need.remove(next.getId());
+				prev = curr; 
+				curr = next; 
+			}
+			
+			endpoints.remove(chain.get(chain.size() - 1));
+			chains.add(chain);
+		}
+		
+		while (!need.isEmpty()) {
+			// There must have been a cycle.
+			// WHY THE FUCK ARE THERE CYCLES IN THESE GRAPHS?? 
+			System.out.println("Had to break up a cycle!");
+			List<Vertex> chain = new ArrayList<Vertex>(); 
+			Vertex curr = vertexList[need.iterator().next()]; 
+			need.remove(curr.getId()); 
+			Vertex prev = null; 
+			while (true) {
+				Vertex next = curr.getAdjList().get(0);
+				if (next == prev) {
+					next = curr.getAdjList().get(1);
+				}
+				if (chain.contains(next)) {
+					break;
+				}
+				
+				chain.add(next);
+				need.remove(next.getId());
+				prev = curr; 
+				curr = next; 
+			}
+			chains.add(chain);
+		}
+		
+		return chains; 
+	}
+	
+	private boolean canCloseWithDummy(List<Edge> cycle) {
+		boolean hasDummy = false; 
+		for (Edge e : cycle) {
+			if (e.isDummy()) {
+				hasDummy = true; 
+			}
+		}
+		
+		if (hasDummy) {
+			return !(cycle.get(cycle.size() - 1).isDummy());
+		} else {
+			return true; 
+		}
+	}
+	
+	private int getFirstWithoutDummy(Set<Integer> needsDummy) {
+		for (int i = 0; i < N * 2; i++) {
+			if (needsDummy.contains(i)) {
+				return i; 
+			}
+		}
+		return -1; 
+	}
+	
+	private void printChain(List<Vertex> chain) {
+		for (Vertex v : chain) {
+			System.out.print(v.getId() + ", ");
+		}
+		System.out.println(); 
+	}
+	
+	public static void chainUntilAdjFailure() throws Exception {
+		int N = 15; 
+		int d = 5; 
+		
+		while (true) {
+		
+			Bipartite fullGraph = new Bipartite(N, d);
+			System.out.println("------------------");
+			System.out.println(fullGraph);
+			
+			//List<List<Edge>> cycles = fullGraph.dummyCycles(); 
+			
+			
+			ArrayList<Bipartite> partition = fullGraph.partitionByDegree(); 
+			int currDegree = 1; 
+			/*for (Bipartite graph : partition) {
+				System.out.println("Degree of " + currDegree);
+				System.out.println(graph);
+				System.out.println(); 
+				
+				//currDegree *= 2; 
+				currDegree++; 
+			}*/
+			
+			ArrayList<Bipartite> finalGraphs = new ArrayList<Bipartite>(); 
+			
+			for (int i = 0; i < d; i++) {
+				finalGraphs.add(new Bipartite(N, d, true /* empty */));
+			}
+			
+			for (int i = 0; i < finalGraphs.size() - 1; i++) {
+				partition.get(i).dfs(finalGraphs.get(i), finalGraphs.get(i + 1));
+			}
+			
+			finalGraphs.get(finalGraphs.size() - 1).combine(partition.get(partition.size() - 1));
+			
+			currDegree = 1;
+			for (Bipartite b : finalGraphs) {
+				System.out.println("Final graph with degree of " + currDegree);
+				System.out.println(b);
+				System.out.println(); 
+				
+				System.out.println("Connected Components: ");
+				
+				List<Set<Vertex>> components = b.getConnectedComponents(); 
+				for (Set<Vertex> c : components) {
+					System.out.println(c);
+				}
+				System.out.println(); 
+				
+				//currDegree *= 2; 
+				currDegree++; 
+			}
+			
+			List<List<Vertex>> chains = finalGraphs.get(1).chainifyGraph(); 
+			System.out.println("\nChains Before: ");
+			for (List<Vertex> chain : chains) {
+				for (Vertex v : chain) {
+					System.out.print(v.getId() + ", "); 
+				}
+				System.out.println();
+			}
+			
+			//finalGraphs.get(0).chaining_tryOddFirst(chains);
+			finalGraphs.get(0).chaining_linkUp(chains);
+			
+			System.out.println("\nChains After: ");
+			for (List<Vertex> chain : chains) {
+				for (Vertex v : chain) {
+					System.out.print(v.getId() + ", "); 
+				}
+				System.out.println();
+			}
+		}
+	}
+	
+	public List<List<Integer>> dfsChaining() {
+		List<List<Integer>> chains = new ArrayList<List<Integer>>();
+		
+		int[] positions = new int[vertexList.length];
+		Set<Integer> remaining = new HashSet<Integer>();
+		for (int i = 0; i < positions.length; i++) {
+			positions[i] = 0; 
+			remaining.add(i);
+		}
+		
+		Deque<Vertex> stack = new ArrayDeque<Vertex>(); 
+		Set<Integer> visited = new HashSet<Integer>();
+		Vertex curr = vertexList[0]; 
+		List<Integer> currChain = new ArrayList<Integer>(); 
+		currChain.add(curr.getId());
+		remaining.remove(curr.getId());
+		stack.add(curr);
+		
+		while (!remaining.isEmpty()) {
+			if (stack.isEmpty()) {
+				Vertex v = vertexList[remaining.iterator().next()]; 
+				remaining.remove(v.getId());
+				stack.add(v);
+			}
+			
+			curr = stack.peek(); 
+			//if (!visited.contains(curr.getId())) {
+				if (!visited.contains(curr.getId()) && currChain.isEmpty()) {
+					// if you're starting a new chain, curr hasn't been added yet.
+					currChain.add(curr.getId());
+					remaining.remove(curr.getId());
+				}
+				 
+				for (int i = positions[curr.getId()]; i < curr.getAdjList().size(); i++) {
+					positions[curr.getId()]++; 
+					Vertex adj = curr.getAdjList().get(i);
+					if (remaining.contains(adj.getId())) {
+						currChain.add(adj.getId());
+						remaining.remove(adj.getId());
+						stack.push(adj);
+						break;
+					}
+				}
+			//}
+			
+			if (positions[curr.getId()] == curr.getAdjList().size()) {
+				// dead end! Start a new chain with wherever you're starting from. 
+				Vertex popped = stack.pop(); 
+				if (!currChain.isEmpty()) {
+					chains.add(currChain);
+					currChain = new ArrayList<Integer>(); 
+				}
+			}
+			
+			visited.add(curr.getId());
+		}
+		
+		if (!currChain.isEmpty()) {
+			chains.add(currChain);
+		}
+		return chains;
+	}
+	
+	/** 
+	 * NOTE: This affects the graph!! (It actually removes the edges on the original.)
+	 */
+	public void removeChainEdges(List<List<Integer>> chains) {
+		for (List<Integer> chain : chains) {
+			for (int i = 1; i < chain.size(); i++) {
+				int v1 = chain.get(i - 1);
+				int v2 = chain.get(i);
+				
+				removeEdge(v1, v2);
+			}
+		}
+	}
+	
+	public void removeEdge(int i1, int i2) {
+		Vertex v1 = vertexList[i1];
+		Vertex v2 = vertexList[i2];
+		
+		v1.removeAdj(v2);
+		v2.removeAdj(v1);
+	}
+	
+	public static void dfsChainingAlg() {
+		int N = 15; 
+		int d = 3; 
+
+		Bipartite fullGraph = new Bipartite(N, d);
+		System.out.println("------------------");
+		System.out.println(fullGraph);
+		
+		List<List<Integer>> chains = fullGraph.dfsChaining(); 
+
+		System.out.println("chains:");
+		for (List<Integer> chain : chains) {
+			System.out.println(chain);
+		}
+		
+		fullGraph.removeChainEdges(chains);
+		
+		System.out.println("\nGraph with chain edges removed"); 
+		System.out.println(fullGraph);
+		
+		List<Set<Vertex>> components = fullGraph.getConnectedComponents(); 
+		System.out.println("\nConnected Components of graph with chain edges removed");
+		for (Set<Vertex> c : components) {
+			System.out.println(c);
+		}
+		System.out.println(); 
+		
+		//DirectedGraph chainGraph = new DirectedGraph(chains, fullGraph);
+		DoubleGraph chainGraph = new DoubleGraph(chains, fullGraph);
+		
+		chainGraph.print();
+		System.out.println(); 
+		chainGraph.printChains(); 
+		
+		System.out.println("\npaths:");
+		List<List<Endpoint>> paths = chainGraph.traverse(); 
+		List<List<Integer>> nextChains = new ArrayList<List<Integer>>();
+		for (List<Endpoint> path : paths) {
+			System.out.print((Endpoint.listIsOdd(path) ? "ODD " : "EVEN "));
+			System.out.println(path);
+			nextChains.add(Endpoint.getFullList(path));
+		}
+		
+		fullGraph.removeChainEdges(nextChains);
+		DoubleGraph nextGraph = new DoubleGraph(nextChains, fullGraph);
+		nextGraph.print(); 
+				
+		//return (chainGraph.hasIsolatedOdd());
+	}
+	
+	public static void dfsChainingAlg_givenChains(List<List<Integer>> chains, Bipartite fullGraph) {
+		fullGraph.removeChainEdges(chains);
+		
+		System.out.println("\nGraph with chain edges removed"); 
+		System.out.println(fullGraph);
+		
+		List<Set<Vertex>> components = fullGraph.getConnectedComponents(); 
+		System.out.println("\nConnected Components of graph with chain edges removed");
+		for (Set<Vertex> c : components) {
+			System.out.println(c);
+		}
+		System.out.println(); 
+		
+		//DirectedGraph chainGraph = new DirectedGraph(chains, fullGraph);
+		DoubleGraph chainGraph = new DoubleGraph(chains, fullGraph);
+		
+		chainGraph.print();
+		System.out.println(); 
+		chainGraph.printChains(); 
+		
+		int numChains_chainGraph = chainGraph.numChains(); 
+		int numOdd_chainGraph = chainGraph.numOddChains(); 
+		
+		System.out.println("\npaths:");
+		List<List<Endpoint>> paths = chainGraph.traverse(); 
+		List<List<Integer>> nextChains = new ArrayList<List<Integer>>();
+		for (List<Endpoint> path : paths) {
+			System.out.print((Endpoint.listIsOdd(path) ? "ODD " : "EVEN "));
+			System.out.println(path);
+			nextChains.add(Endpoint.getFullList(path));
+		}
+		
+		fullGraph.removeChainEdges(nextChains);
+		DoubleGraph nextGraph = new DoubleGraph(nextChains, fullGraph);
+		
+		System.out.println(); 
+		nextGraph.print(); 
+		System.out.println(); 
+		nextGraph.printChains(); 
+		
+		int numChains_nextGraph = nextGraph.numChains(); 
+		int numOdd_nextGraph = nextGraph.numOddChains(); 
+		
+		System.out.println(); 
+		System.out.println("Num odd chains / Num total chains");
+		System.out.println("Original: " + numOdd_chainGraph + " / " + numChains_chainGraph);
+		System.out.println("Next: " + numOdd_nextGraph + " / " + numChains_nextGraph);
+	}
+	
+	public static List<List<Vertex>> CHPreprocessing(Bipartite fullGraph, int N, int d) {
+		ArrayList<Bipartite> partition = fullGraph.partitionByDegree(); 
+		int currDegree = 1; 
+		
+		ArrayList<Bipartite> finalGraphs = new ArrayList<Bipartite>(); 
+		
+		for (int i = 0; i < d; i++) {
+			finalGraphs.add(new Bipartite(N, d, true /* empty */));
+		}
+		
+		for (int i = 0; i < finalGraphs.size() - 1; i++) {
+			partition.get(i).dfs(finalGraphs.get(i), finalGraphs.get(i + 1));
+		}
+		
+		finalGraphs.get(finalGraphs.size() - 1).combine(partition.get(partition.size() - 1));
+		
+		currDegree = 1;
+		for (Bipartite b : finalGraphs) {
+			System.out.println("Final graph with degree of " + currDegree);
+			System.out.println(b);
+			System.out.println(); 
+			
+			System.out.println("Connected Components: ");
+			
+			List<Set<Vertex>> components = b.getConnectedComponents(); 
+			for (Set<Vertex> c : components) {
+				System.out.println(c);
+			}
+			System.out.println(); 
+			
+			//currDegree *= 2; 
+			currDegree++; 
+		}
+		
+		List<List<Vertex>> chains = finalGraphs.get(1).chainifyGraph(); 
+		System.out.println("\nChains Before: ");
+		for (List<Vertex> chain : chains) {
+			for (Vertex v : chain) {
+				System.out.print(v.getId() + ", "); 
+			}
+			System.out.println();
+		}
+		
+		return chains;
+	}
+	
+	public static void dfsChainingAlg_withPreprocessing() {
+		int N = 15; 
+		int d = 5; 
+		
+		Bipartite fullGraph = new Bipartite(N, d);
+		System.out.println("------------------");
+		System.out.println(fullGraph);
+		
+		List<List<Vertex>> chains = CHPreprocessing(fullGraph, N, d);
+		
+		List<List<Integer>> integerChains = new ArrayList<List<Integer>>(); 
+		for (List<Vertex> chain : chains) {
+			List<Integer> iChain = new ArrayList<Integer>(); 
+			for (Vertex v : chain) {
+				iChain.add(v.getId());
+			}
+			integerChains.add(iChain);
+		}
+		dfsChainingAlg_givenChains(integerChains, fullGraph);
+	}
+	
+	public static void main(String[] args) throws Exception {
+		//dfsChainingAlg(); 
+		//chainUntilAdjFailure(); 
+		dfsChainingAlg_withPreprocessing(); 
+	}
+}

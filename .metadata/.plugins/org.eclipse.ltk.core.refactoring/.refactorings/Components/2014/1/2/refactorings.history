@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Move element &apos;Edge.java&apos; to &apos;Components/src/(default package)&apos;&#x0A;- Original project: &apos;Components&apos;&#x0A;- Destination element: &apos;Components/src/(default package)&apos;&#x0A;- Original element: &apos;Edge.java&apos;&#x0A;- Update references to refactored element" description="Move file" destination="/src&lt;" element1="Edge.java" files="1" flags="589830" folders="0" id="org.eclipse.jdt.ui.move" policy="org.eclipse.jdt.ui.moveResources" qualified="false" references="true" stamp="1389237846281" units="0" version="1.0"/>
+</session>

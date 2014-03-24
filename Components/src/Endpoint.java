@@ -158,7 +158,8 @@ public class Endpoint {
 	public Endpoint breakChain(int index) {
 		Endpoint oldEnd = otherEnd;
 		
-		Chain newChain = chain.breakChain(index);
+		//Chain newChain = chain.breakChain(index);
+		Chain newChain = null; 
 		otherEnd = new Endpoint(this.chain, chain.getEnd(), this, false /* end */);
 		setOtherEnd(otherEnd);
 		

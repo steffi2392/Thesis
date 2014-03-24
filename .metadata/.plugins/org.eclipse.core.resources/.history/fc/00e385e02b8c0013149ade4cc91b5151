@@ -1,0 +1,306 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.Stack;
+
+public class DoubleGraph {
+	private HashMap<Integer, Endpoint> graph; 
+	
+	public DoubleGraph(List<List<Integer>> chains, Bipartite fullGraph) {
+		graph = new HashMap<Integer, Endpoint>(); 
+		
+		int numEndpoints = 0; 
+		for (int i = 0; i < chains.size(); i++) {
+			Chain currChain = new Chain(i, chains.get(i));
+			Endpoint start = new Endpoint(numEndpoints, currChain, currChain.getStart(), true /* start */);
+			numEndpoints++; 
+			graph.put(start.getValue(), start);
+			
+			if (currChain.length() > 1) {
+				Endpoint end = new Endpoint(numEndpoints, currChain, currChain.getEnd(), false /* end */);
+				numEndpoints++; 
+				graph.put(end.getValue(), end);
+				start.setOtherEnd(end);
+				end.setOtherEnd(start);
+			}
+		}
+		
+		for (Endpoint e : graph.values()) {
+			Vertex v = fullGraph.getVertex(e.getValue());
+			for (Vertex adj : v.getAdjList()) {
+				if (graph.containsKey(adj.getId()) && 
+						(e.getOtherEnd() == null || e.getOtherEnd().getValue() != adj.getId()))  {
+					Endpoint adjEndpoint = graph.get(adj.getId()); 
+					e.addAdj(adjEndpoint);
+				}
+			}
+		}
+	}
+	
+	public void addEndpoint(Endpoint e) {
+		graph.put(e.getValue(), e);
+	}
+	
+	public void removeEndpoint(Endpoint e) {
+		graph.remove(e.getValue());
+	}
+	
+	public boolean hasIsolatedOdd() {
+		for (Endpoint e : graph.values()) {
+			if (e.isIsolatedOdd()) {
+				return true;
+			}
+		}
+		return false; 
+	}
+	
+	/** 
+	 * Traverse the graph, making lists of endpoints.
+	 * Always starts a traversal at the odd vertex with the fewest adj vertices. 
+	 * Stops a chain when it hits another odd vertex.
+	 * 
+	 * NOTE: THIS DESTROYS ADJ LISTS AS IT GOES.
+	 */
+	public List<List<Endpoint>> traverse() {
+		List<List<Endpoint>> chainsOfChains = new ArrayList<List<Endpoint>>(); 
+
+		Stack<Endpoint> stack = new Stack<Endpoint>(); 
+		List<Endpoint> currPath = new ArrayList<Endpoint>(); 
+		Set<Integer> visited = new HashSet<Integer>(); 
+		Endpoint start = getOddFewestAdjUnvisited(visited);
+		stack.push(start);
+		
+		while (true) {
+			if (stack.isEmpty()) {
+				if (!currPath.isEmpty()) {
+					chainsOfChains.add(currPath);
+					currPath = new ArrayList<Endpoint>(); 
+				}
+				stack.push(getOddFewestAdjUnvisited(visited));
+			}
+			
+			Endpoint currEndpoint = stack.peek(); 
+			if (currEndpoint == null) {
+				chainsOfChains.addAll(getUnvisited(visited));
+				return chainsOfChains;
+			}
+			
+			if (!visited.contains(currEndpoint.getId())) {
+				
+				// If there is an other end and we're starting a chain, add it as the actual starting point.
+				if (currPath.isEmpty() && currEndpoint.hasOtherEnd()) {
+					currPath.add(currEndpoint.getOtherEnd());
+					visited.add(currEndpoint.getOtherEnd().getId());
+				}
+				
+				currPath.add(currEndpoint);
+				visited.add(currEndpoint.getId());
+				
+				// We've reached another odd! End this chain.
+				// Continue on from the next odd.
+				if (currEndpoint.isOdd() && currPath.size() > 1 
+						&& currPath.get(currPath.size() - 2).getId() != currEndpoint.getOtherEnd().getId()) {
+					// add the other end to the path if it's not there already
+					if (currEndpoint.hasOtherEnd()) {
+						currPath.add(currEndpoint.getOtherEnd());
+						visited.add(currEndpoint.getOtherEnd().getId());
+					}
+					chainsOfChains.add(currPath);
+					currPath = new ArrayList<Endpoint>(); 
+					
+					stack = new Stack<Endpoint>(); 
+					stack.push(getOddFewestAdjUnvisited(visited));
+				} else if (currPath.size() > 1 && currEndpoint.hasOtherEnd() && 
+						currPath.get(currPath.size() - 2).getId() != currEndpoint.getOtherEnd().getId()) {
+					stack.push(currEndpoint.getOtherEnd());
+				} else {
+					// add adjacent vert to the stack OR you're at a deadend
+					
+					// DeadEnd check: 
+					if (currEndpoint.getAdjList().size() == 0) {
+						chainsOfChains.add(currPath);
+						currPath = new ArrayList<Endpoint>(); 
+						stack.pop();
+					} else {
+						Endpoint next = currEndpoint.getAdjList().remove(0);
+						
+						while (visited.contains(next.getId()) && !currEndpoint.getAdjList().isEmpty()) {
+							next = currEndpoint.getAdjList().remove(0);
+						}
+						
+						if (next != null && !visited.contains(next.getId())) {
+							stack.push(next);
+						}
+					}
+				}
+			} else {
+				stack.pop(); 
+			}
+		}
+	}
+	
+	private List<List<Endpoint>> getUnvisited(Set<Integer> visited) {
+		List<List<Endpoint>> unvisited = new ArrayList<List<Endpoint>>(); 
+		Set<Integer> unvisitedSet = new HashSet<Integer>(); 
+		for (Endpoint e : graph.values()) {
+			if (!visited.contains(e.getId()) && !unvisitedSet.contains(e.getChain().getId())) {
+				List<Endpoint> singleList = new ArrayList<Endpoint>();
+				singleList.add(e);
+				if (e.hasOtherEnd()) {
+					singleList.add(e.getOtherEnd()); 
+				}
+				
+				unvisited.add(singleList);
+				unvisitedSet.add(e.getChain().getId());
+			}
+		}
+		return unvisited;
+	}
+	
+	private Endpoint getOddFewestAdjUnvisited(Set<Integer> visited) {
+		Endpoint endpoint = null; 
+		int fewest = Integer.MAX_VALUE;
+		for (Endpoint e : graph.values()) {
+			if (e.isOdd()) {
+				if (e.getAdjList().size() < fewest && e.getAdjList().size() > 0 && !visited.contains(e.getId())) {
+					endpoint = e;
+				}
+			}
+		}
+		System.out.println("getFewestAdjUnvisited returning: " + endpoint);
+		return endpoint;
+	}
+	
+	public int numChains() {
+		int numChains = 0; 
+		Set<Integer> chainIds = new HashSet<Integer>(); 
+		for (Endpoint e : graph.values()) {
+			if (!chainIds.contains(e.getChain().getId())) {
+				numChains++; 
+				chainIds.add(e.getChain().getId());
+			}
+		}
+		return numChains; 
+	}
+	
+	public int numOddChains() {
+		int numOdd = 0; 
+		Set<Integer> chainIds = new HashSet<Integer>(); 
+		for (Endpoint e : graph.values()) {
+			if (!chainIds.contains(e.getChain().getId())) {
+				e.getChain().print();
+				chainIds.add(e.getChain().getId());
+				if (e.getChain().isOdd()) {
+					numOdd++; 
+				} 
+			}
+		}
+		return numOdd; 
+	}
+	
+	/** Goes through the graph -- if there are any disconnected chains of odd lengths, it 
+	 * breaks chains at every adj point of the disconnected vertex.
+	 **/
+	public void connectDisconnectedOdds(Bipartite otherEdges) {
+		List<Endpoint> disconnected = getDisconnected(); 
+		
+		for (Endpoint disconnect : disconnected) {
+			Vertex disconnectedStart = otherEdges.getVertex(disconnect.getValue()); 
+			for (Vertex adj : disconnectedStart.getAdjList()) {
+				Endpoint endpoint = findChain(adj);
+				
+				int index = -1; 
+				for (int i = 0; i < endpoint.getChain().getVertexList().size(); i++) {
+					Integer id = endpoint.getChain().getVertexList().get(i);
+					index = i; 
+					if (disconnectedStart.getId() == id) {
+						// found it in the chain! Break here. 
+						Integer breakpoint = id; 
+						break;
+					}
+				}
+				
+				
+			}
+		}
+	}
+	
+	/**
+	 * Processes disconnected. 
+	 * if connectStart then it connects the first thing in disconnected to index; otherwise
+	 * it reverses disconnected before attaching.
+	 */
+	private void processDisconnected(Endpoint disconnected, Endpoint connectHere, int index, boolean connectStart) {
+		// Odd length Chain:
+		if (connectHere.isOdd()) {
+			// If index is even: break after and connect here.
+			if (index % 2 == 0) {
+				Endpoint newStartEndpoint = connectHere.breakChain(index);
+				addEndpoint(newStartEndpoint);
+				connectHere.addToEnd(disconnected, connectStart);
+				
+				if (disconnected.hasOtherEnd()) {
+					removeEndpoint(disconnected);
+				}
+			} else {
+			// Index is odd: this is bad! Try to not do anything.
+				System.out.println("would connect disconnected to odd index of odd chain. Bad.");
+			}
+		} else {
+		// Even length Chain: 
+			if (index % 2 == 0) {
+			// If index is even: break before. Nothing gets connected!
+				newChain = connectHere.getChain().breakChain(index - 1);
+				addEndpoint(connectHere.getOtherEnd());
+			} else {
+			// If index is odd: break after	
+				newChain = connectHere.getChain().breakChain(index);
+			}
+		}
+	}
+	
+	/** 
+	 * Returns an endpoint of the chain that contains v
+	 **/
+	private Endpoint findChain(Vertex v) {
+		for (Endpoint e : graph.values()) {
+			if (e.getChain().getVertexSet().contains(v.getId())) {
+				return e; 
+			}
+		}
+		System.out.println("ERROR in DoubleGraph.findChain() -- couldn't find v in a chain");
+		return null;
+	}
+	
+	private List<Endpoint> getDisconnected() {
+		Set<Integer> lookedAt = new HashSet<Integer>();
+		List<Endpoint> disconnected = new ArrayList<Endpoint>(); 
+		for (Endpoint e : graph.values()) {
+			if (!lookedAt.contains(e.getChain().getId())) {
+				if (e.getAdjList().isEmpty()) {
+					disconnected.add(e);
+				}
+			}
+		}
+		return disconnected;
+	}
+	
+	public void printChains() {
+		for (Endpoint e : graph.values()) {
+			System.out.print(e + ": ");
+			e.getChain().print();
+		}
+	}
+	
+	public void print() {
+		for (Endpoint e : graph.values()) {
+			System.out.print(e + ": ");
+			for (Endpoint adj : e.getAdjList()) {
+				System.out.print(adj + ", ");
+			}
+			System.out.println(); 
+		}
+	}
+}

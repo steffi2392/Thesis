@@ -1,0 +1,173 @@
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
+
+public class Chain<T> {
+	private int id; 
+	private List<Integer> vertexList;
+	private List<Chain> chainList; 
+	private Set<Integer> vertexSet;
+	private Orientation orientation; 
+	private Integer start; 
+	private Integer end; 
+	private List<Chain> inbound;
+	private List<Chain> outbound;
+	
+	public Chain(int id, List<Integer> vertexList) {
+		
+	}
+	
+	public Chain(int id, List<T> chainList, boolean isChainList) {
+		if (isChainList)
+			chainChains(id, chainList);
+		else
+			integerChains(id, chainList);
+			
+	}
+	
+	private void integerChains(int id, List<T> chainList) {
+		this.id = id; 
+		this.vertexList = new ArrayList<Integer>(vertexList);
+		vertexSet = new HashSet<Integer>(vertexList);
+		orientation = Orientation.FORWARD;
+		start = vertexList.get(0);
+		end = vertexList.get(vertexList.size() - 1);
+		inbound = new ArrayList<Chain>(); 
+		outbound = new ArrayList<Chain>(); 
+	}
+	
+	private void chainChains(int id, List<T> chainList) {
+		System.out.println("STEFFI THIS IS BEING CALLED");
+		this.id = id; 
+		this.chainList = (List<Chain>) chainList;
+		vertexList = new ArrayList<Integer>(); 
+		vertexSet = new HashSet<Integer>(); 
+		Set<Integer> added = new HashSet<Integer>();
+		for (Chain<Chain> c : this.chainList) {
+			/*for (Integer v : c.getVertexList()) {
+				if (!vertexSet.contains(v)) {
+					vertexList.add(v);
+					vertexSet.add(v);
+				}
+			}*/
+			System.out.println("c id: " + c.getId());
+			if (!added.contains(c.getId())) {
+				vertexList.addAll(c.getVertexList());
+				vertexSet.addAll(c.getVertexList());
+				added.add(c.getId());
+			}
+		}
+		orientation = Orientation.FORWARD;
+		start = vertexList.get(0);
+		end = vertexList.get(vertexList.size() - 1);
+		inbound = new ArrayList<Chain>(); 
+		outbound = new ArrayList<Chain>(); 
+	}
+	
+	public int getId() {
+		return id;
+	}
+	
+	public Integer getStart() {
+		return start;
+	}
+	
+	public Integer getEnd() {
+		return end;
+	}
+	
+	public List<Integer> getVertexList() {
+		return vertexList;
+	}
+	
+	public boolean contains(Vertex v) {
+		return vertexSet.contains(v);
+	}
+	
+	public Orientation reverse() {
+		Integer temp = start;
+		start = end;
+		end = temp;
+		orientation = Orientation.getReverse(orientation);
+		
+		List<Chain> tempChain = inbound;
+		inbound = outbound;
+		outbound = tempChain;
+		
+		for (Chain c : inbound) {
+			c.reverseEdge(this);
+		}
+		for (Chain c : outbound) {
+			c.reverseEdge(this);
+		}
+		
+		return orientation;
+	}
+	
+	public int length() {
+		return vertexList.size(); 
+	}
+	
+	public boolean isOdd() {
+		System.out.println("vertexList.size() " + vertexList.size());
+		return (vertexList.size() % 2 != 0); 
+	}
+	
+	public void reverseEdge(Chain chain) {
+		int i = 0; 
+		while (i < inbound.size()) {
+			Chain c = inbound.get(i);
+			if (c == chain) {
+				inbound.remove(c);
+				outbound.add(c);
+			} else {
+				i++; 
+			}
+		}
+		i = 0; 
+		while (i < outbound.size()) {
+			Chain c = outbound.get(i);
+			if (c == chain) {
+				outbound.remove(c);
+				inbound.add(c);
+			} else {
+				i++; 
+			}
+		}
+	}
+	
+	/** 
+	 * this.connect(chain) means the last thing in this is connected
+	 * to the first thing in chain. (this -> chain)
+	 */
+	public void connect(Chain chain) {
+		outbound.add(chain);
+		chain.addToInbound(this);
+	}
+	
+	public void addToInbound(Chain chain) {
+		inbound.add(chain);
+	}
+	
+	public char getCharId() {
+		return (char) (65 + id);
+	}
+	
+	public void print() {
+		char directionMarker = (orientation == Orientation.FORWARD) ? ' ' : '*';
+		System.out.print(directionMarker + "Chain " + getCharId() + "[" + start + " .. " + end + "]: ");
+		for (Chain c : outbound) {
+			System.out.print(c.getCharId() + " ");
+		}
+		System.out.println(); 
+	}
+	
+	public enum Orientation {
+		FORWARD, BACKWARD; 
+		
+		public static Orientation getReverse(Orientation or) {
+			return (or == FORWARD) ? BACKWARD : FORWARD;
+		}
+	}
+}

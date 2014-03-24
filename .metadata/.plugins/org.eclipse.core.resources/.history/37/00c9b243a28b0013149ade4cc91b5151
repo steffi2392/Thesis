@@ -1,0 +1,141 @@
+import java.util.ArrayList;
+import java.util.List;
+
+public class Endpoint {
+	private Integer id; 
+	private Integer value; 
+	private Endpoint otherEnd;
+	private List<Endpoint> adjList; 
+	private Chain chain; 
+	private boolean start; 
+	
+	public Endpoint(Integer id, Chain chain, Integer value, boolean start) {
+		this.id = id;
+		this.value = value;
+		this.chain = chain; 
+		otherEnd = null; 
+		adjList = new ArrayList<Endpoint>(); 
+		this.start = start; 
+	}
+	
+	public Endpoint(Integer id, Chain chain, Integer value, Endpoint otherEnd, boolean start) {
+		this.id = id;
+		this.value = value;
+		this.chain = chain; 
+		this.otherEnd = otherEnd;
+		adjList = new ArrayList<Endpoint>(); 
+		this.start = start; 
+	}
+	
+	public int getId() {
+		return id; 
+	}
+	
+	public int getChainId() {
+		return chain.getId(); 
+	}
+	
+	public Chain getChain() {
+		return chain;
+	}
+	
+	public Integer getValue() {
+		return value;
+	}
+	
+	public boolean isSingle() {
+		return !(otherEnd == null);
+	}
+	
+	public boolean hasOtherEnd() {
+		return (otherEnd != null);
+	}
+	
+	public Endpoint getOtherEnd() {
+		return otherEnd; 
+	}
+	
+	public void setOtherEnd(Endpoint e) {
+		otherEnd = e; 
+	}
+	
+	public List<Endpoint> getAdjList() {
+		return adjList; 
+	}
+	
+	public void addAdj(Endpoint e) {
+		adjList.add(e);
+	}
+	
+	public boolean isIsolatedOdd() {
+		return ((chain.length() % 2 != 0) && adjList.size() == 0 
+				&& (otherEnd == null || otherEnd.getAdjList().size() == 0));
+	}
+	
+	public boolean isOdd() {
+		return (chain.length() % 2 != 0);
+	}
+	
+	public static void connect(Endpoint e1, Endpoint e2) {
+		e1.addAdj(e2);
+		e2.addAdj(e1);
+	}
+	
+	public static boolean listIsOdd(List<Endpoint> list) {
+		int numOdd = 0; 
+		Endpoint prev = null; 
+		for (Endpoint e : list) {
+			if ((prev == null || prev.getChainId() != e.getChainId()) && e.isOdd()) {
+				numOdd++; 
+			}
+			prev = e;
+		}
+		
+		return (numOdd % 2) != 0;
+	}
+	
+	/**
+	 * Adds the vertices from supplied endpoint to this
+	 */
+	public void addToEnd(Endpoint e, boolean connectToStart) {
+		if (connectToStart) {
+			chain.getVertexList().addAll(e.getChain().getVertexList());
+			otherEnd = e.hasOtherEnd() ? e.getOtherEnd() : e;
+		} else {
+			for (int i = e.getChain().getVertexList().size() - 1; i >= 0; i--) {
+				chain.getVertexList().add(e.getChain().getVertexList().get(i));
+			}
+			otherEnd = e; 
+		}
+		otherEnd.setOtherEnd(this);
+	}
+	
+	public void addToStart(Endpoint e, boolean connectToStart) {
+		if (connectToStart) {
+			List<Integer> newVertexList = new ArrayList<Integer>(e.getChain().getVertexList());
+			newVertexList.addAll(chain.getVertexList());
+			chain.setVertexList(newVertexList);
+		} else {
+			
+		}
+	}
+	
+	public static List<Integer> getFullList(List<Endpoint> endpointList) {
+		List<Integer> fullList = new ArrayList<Integer>(); 
+		Endpoint prev = null;
+		for (Endpoint e : endpointList) {
+			if ((prev == null) || !(prev.getChainId() == e.getChainId())) {
+				for (Integer v : e.getChain().getVertexList()) {
+					fullList.add(v);
+				}
+			}
+			prev = e;
+		}
+		return fullList; 
+	}
+	
+	public String toString() {
+		String endMarker = (start) ? "" : "*";
+		return (chain.getCharId() + endMarker);
+	}
+}

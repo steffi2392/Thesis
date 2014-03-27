@@ -1221,26 +1221,37 @@ public class Bipartite {
 				}
 				
 				int[] maxAffected = new int[6];
+				double[] averageAffected = new double[6];
 				for (int i = 0; i < 6; i++) {
 					maxAffected[i] = 0; 
+					averageAffected[i] = 0; 
 				}
 				int maxEvenToOdd = 0; 
+				double averageEvenToOdd = 0; 
 				
 				for (int i = 0; i < N * 2; i++) {
+					averageEvenToOdd += sortedGraph.getEvenToOddCount()[i];
 					if (sortedGraph.getEvenToOddCount()[i] > maxEvenToOdd) {
 						maxEvenToOdd = sortedGraph.getEvenToOddCount()[i];
 					}
 					for (int j = 0; j < 6; j++) {
+						averageAffected[j] += sortedGraph.getAffectedCount()[i][j];
 						if (sortedGraph.getAffectedCount()[i][j] > maxAffected[j]) {
 							maxAffected[j] = sortedGraph.getAffectedCount()[i][j]; 
 						}
 					}
 				}
+				
+				for (int i = 0; i < 6; i++) {
+					averageAffected[i] = ((double) averageAffected[i]) / N; 
+				}
+				averageEvenToOdd = averageEvenToOdd / N; 
 				//System.out.println(steps); 
-				System.out.printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", N, steps.size(), counts[0], counts[1], 
+				System.out.printf("%d %d %d %d %d %d %d %d %d %d %f %d %d %d %d %d %d %f %f %f %f %f %f\n", N, steps.size(), counts[0], counts[1], 
 						counts[2], counts[3], counts[4], counts[5], longestConsecutive, maxEvenToOdd, 
-						maxAffected[0], maxAffected[1], maxAffected[2], maxAffected[3], maxAffected[4], 
-						maxAffected[5]); 
+						averageEvenToOdd, maxAffected[0], maxAffected[1], maxAffected[2], maxAffected[3], maxAffected[4], 
+						maxAffected[5], averageAffected[0], averageAffected[1], averageAffected[2], 
+						averageAffected[3], averageAffected[4], averageAffected[5]); 
 				
 				Chain.resetNumChains(); 
 			}
@@ -1248,14 +1259,14 @@ public class Bipartite {
 	}
 	
 	public static void countChains() {
-		//int N = 30; 
+		int N = 20; 
 		int d = 3; 
 
-		for (int N = 50; N <= 10000000; N = N * 2) {
-			for (int i = 0; i < 50; i++) {
+		//for (int N = 20; N <= 10000000; N = N * 2) {
+			//for (int i = 0; i < 50; i++) {
 				Bipartite fullGraph = new Bipartite(N, d);
-				//System.out.println("------------------");
-				//System.out.println(fullGraph);
+				System.out.println("------------------");
+				System.out.println(fullGraph);
 				
 				List<List<Integer>> chainLists = fullGraph.dfsChaining(); 
 				List<Chain> chains = Chain.convertLists(chainLists);
@@ -1269,10 +1280,10 @@ public class Bipartite {
 				for (Chain chain : chains) {
 					if (chain.length() % 2 == 0) {
 						numEven++; 
-						//System.out.print("E: ");
+						System.out.print("E: ");
 					} else {
 						numOdd++; 
-						//System.out.print("O: ");
+						System.out.print("O: ");
 					}
 					
 					if (chain.length() == 1) {
@@ -1281,13 +1292,13 @@ public class Bipartite {
 					
 					lengths.add(chain.length());
 					sum += chain.length(); 
-					//chain.print(); 
+					chain.print(); 
 				}
 				Collections.sort(lengths);
 				System.out.printf("%d %d %d %d %d %.2f %d\n", N, numEven, numOdd, numSingletons, Collections.max(lengths), 
 						((double) sum) / chains.size(), lengths.get(lengths.size() / 2));
-			}
-		}
+			//}
+		//}
 	}
 	
 	public static void main(String[] args) throws Exception {
@@ -1301,6 +1312,7 @@ public class Bipartite {
 		}*/
 		
 		connectingAlg(); 
+		//countChains(); 
 		
 		//countChains(); 
 	}

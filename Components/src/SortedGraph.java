@@ -175,6 +175,56 @@ public class SortedGraph {
 		return steps;
 	}
 	
+	public List<Integer> connect_withPrint() throws Exception {
+		List<Integer> steps = new ArrayList<Integer>(); 
+		int count = 0; 
+		boolean prevWas6 = false; 
+		
+		while (!lTerm.isEmpty()) {
+			count++; 
+			if (count > 4 * N) {
+				System.out.println("STEPS:"); 
+				System.out.println(steps);
+				throw new Exception("Too many iterations!");
+			}
+			if (!prevWas6) {
+				even.addAll(consideredEven);
+				consideredEven = new ArrayList<Chain>(); 
+			}
+			
+			if (!processOddConnection(steps)) {
+				Map<Integer, List<List<Connection>>> connectionMap = getEvenConnectionLists();
+				if (!processSharedEven_crossedOrBridge(connectionMap, steps)) {
+					if(!findAndProcessUnshared_bridge(connectionMap, steps)) {
+						System.out.println("STEFFI: HAD STEP 5 OR 6");
+						if (!findAndProcessShared_noBridge(connectionMap, steps)) {
+							prevWas6 = true; 
+							if (!findAndProcessUnshared_noBridge(connectionMap, steps)) {
+								System.out.println(); 
+								printGraph(); 
+								System.out.println(); 
+								System.out.println("connection map: ");
+								System.out.println(connectionMap);
+								
+								System.out.println(); 
+								System.out.println("consideredEven");
+								System.out.println(consideredEven);
+								throw new Exception("Error: None of the 6 applied."); 
+							}
+						}
+					}
+				}
+			}
+			System.out.println(); 
+			printGraph(); 
+			System.out.println(); 
+			System.out.println("steps:");
+			System.out.println(steps);
+		}
+		
+		return steps;
+	}
+	
 	// Only concerned with connections from l in L to r in R!
 	public Connection getOddConnection() throws Exception {
 		Set<Integer> rTermSet = getRTermSet(); 
@@ -727,10 +777,11 @@ public class SortedGraph {
 		
 		// Break the chains and add all pieces to even list
 		List<Chain> addToConsideredEven = new ArrayList<Chain>(); 
+		List<Chain> addToEven = new ArrayList<Chain>(); 
 		addToConsideredEven.add(leftChain.breakAfter(leftToEven.getLIndex()));
 		addToConsideredEven.add(rightChain.breakBefore(rightToEven.getRIndex()));
-		addToConsideredEven.add(leftEvenChain.breakAfter(leftToEven.getRIndex()));
-		addToConsideredEven.add(rightEvenChain.breakBefore(rightToEven.getLIndex()));
+		addToEven.add(leftEvenChain.breakAfter(leftToEven.getRIndex()));
+		addToEven.add(rightEvenChain.breakBefore(rightToEven.getLIndex()));
 		
 		for (Chain c : addToConsideredEven) {
 			if (c.length() > 0) {
@@ -738,6 +789,15 @@ public class SortedGraph {
 					c.reverse(); 
 				}
 				addToList(c, consideredEven, "processUnshared_noBridge"); 
+			}
+		}
+		
+		for (Chain c : addToEven) {
+			if (c.length() > 0) {
+				if (c.get(0) >= N) {
+					c.reverse(); 
+				}
+				addToList(c, even, "processUnshared_noBridge"); 
 			}
 		}
 		

@@ -1150,51 +1150,60 @@ public class Bipartite {
 	 * Run the algorithm with the maximum length dfs chains
 	 * @throws Exception 
 	 */
-	public static void connectingAlg() throws Exception {
-		//int N = 15; 
+	public static void connectingAlg(boolean print) throws Exception {
+		//int N = 20; 
 		int d = 3; 
 
 		for (int N = 50; N <= 10000000; N += 100) {
 			for (int run = 0; run < 50; run++) {
 				Bipartite fullGraph = new Bipartite(N, d);
-				//System.out.println("------------------");
-				//System.out.println(fullGraph);
+				
+				if (print) {
+					System.out.println("------------------");
+					System.out.println(fullGraph);
+				}
 				
 				List<List<Integer>> chainLists = fullGraph.dfsChaining(); 
 				List<Chain> chains = Chain.convertLists(chainLists);
 		
-				/*System.out.println(); 
-				for (Chain chain : chains) {
-					chain.print(); 
-				}*/
+				if (print) {
+					System.out.println(); 
+					for (Chain chain : chains) {
+						chain.print(); 
+					}
+				}
 				
 				SortedGraph sortedGraph = new SortedGraph(chains, fullGraph.getVertexList(), N); 
 				
-				/*System.out.println("\n Before Algorithm:");
-				System.out.println("L-term Chains");
-				System.out.println(sortedGraph.getLTerm());
-				System.out.println("\nR-term Chains");
-				System.out.println(sortedGraph.getRTerm());
-				System.out.println("\nEven Chains");
-				System.out.println(sortedGraph.getEven());*/
+				if (print) {
+					System.out.println("\n Before Algorithm:");
+					System.out.println("L-term Chains");
+					System.out.println(sortedGraph.getLTerm());
+					System.out.println("\nR-term Chains");
+					System.out.println(sortedGraph.getRTerm());
+					System.out.println("\nEven Chains");
+					System.out.println(sortedGraph.getEven());
+				}
 				
 				List<Integer> steps = sortedGraph.connect(); 
 				
-				/*System.out.println("AffectedCount: ");
-				for (int i = 0; i < N * 2; i++) {
-					System.out.print(i + ": "); 
-					for (int j = 0; j < 6; j++) {
-						System.out.print(sortedGraph.getAffectedCount()[i][j] + ", ");
+				if (print) {
+					System.out.println("AffectedCount: ");
+					for (int i = 0; i < N * 2; i++) {
+						System.out.print(i + ": "); 
+						for (int j = 0; j < 6; j++) {
+							System.out.print(sortedGraph.getAffectedCount()[i][j] + ", ");
+						}
+						System.out.println(); 
+					}
+					System.out.println(); 
+					
+					System.out.println("EvenToOddCount: ");
+					for (int i = 0; i < N * 2; i++) {
+						System.out.print(sortedGraph.getEvenToOddCount()[i] + ", ");
 					}
 					System.out.println(); 
 				}
-				System.out.println(); 
-				
-				System.out.println("EvenToOddCount: ");
-				for (int i = 0; i < N * 2; i++) {
-					System.out.print(sortedGraph.getEvenToOddCount()[i] + ", ");
-				}
-				System.out.println(); */
 				
 				
 				int[] counts = new int[6]; 
@@ -1204,20 +1213,36 @@ public class Bipartite {
 				
 				int longestConsecutive = 0; 
 				int currConsecutive = 0; 
+				int longest5 = 0; 
+				int curr5 = 0; 
+				int longest6 = 0; 
+				int curr6 = 0; 
 				for (Integer step : steps) {
 					counts[step - 1]++; 
 					
-					if (step == 5 || step == 6) {
+					if (step == 5) {
+						curr5++; 
 						currConsecutive++; 
+						curr6 = 0; 
+					} else if (step == 6) {
+						curr6++; 
+						currConsecutive++; 
+						curr5 = 0; 
 					} else {
-						if (currConsecutive > longestConsecutive) {
-							longestConsecutive = currConsecutive;
-							currConsecutive = 0; 
-						}
+						currConsecutive = 0; 
+						curr5 = 0; 
+						curr6 = 0; 
 					}
-				}
-				if (currConsecutive > longestConsecutive) {
-					longestConsecutive = currConsecutive; 
+					
+					if (curr5 > longest5) {
+						longest5 = curr5;
+					}
+					if (curr6 > longest6) {
+						longest6 = curr6;
+					} 
+					if (currConsecutive > longestConsecutive) {
+						longestConsecutive = currConsecutive;
+					}
 				}
 				
 				int[] maxAffected = new int[6];
@@ -1246,9 +1271,12 @@ public class Bipartite {
 					averageAffected[i] = ((double) averageAffected[i]) / N; 
 				}
 				averageEvenToOdd = averageEvenToOdd / N; 
-				//System.out.println(steps); 
-				System.out.printf("%d %d %d %d %d %d %d %d %d %d %f %d %d %d %d %d %d %f %f %f %f %f %f\n", N, steps.size(), counts[0], counts[1], 
-						counts[2], counts[3], counts[4], counts[5], longestConsecutive, maxEvenToOdd, 
+				
+				if (print) {
+					System.out.println(steps); 
+				}
+				System.out.printf("%d %d %d %d %d %d %d %d %d %d %d %d %f %d %d %d %d %d %d %f %f %f %f %f %f\n", N, steps.size(), counts[0], counts[1], 
+						counts[2], counts[3], counts[4], counts[5], longestConsecutive, longest5, longest6, maxEvenToOdd, 
 						averageEvenToOdd, maxAffected[0], maxAffected[1], maxAffected[2], maxAffected[3], maxAffected[4], 
 						maxAffected[5], averageAffected[0], averageAffected[1], averageAffected[2], 
 						averageAffected[3], averageAffected[4], averageAffected[5]); 
@@ -1256,6 +1284,149 @@ public class Bipartite {
 				Chain.resetNumChains(); 
 			}
 		}
+	}
+	
+	/**
+	 * Run the algorithm with the maximum length dfs chains
+	 * @throws Exception 
+	 */
+	public static void connectingAlg_runUntil(boolean print) throws Exception {
+		int N = 20; 
+		int d = 3; 
+		
+		List<Integer> steps = new ArrayList<Integer>(); 
+
+		//while(!(steps.contains(5) || steps.contains(6))) {
+		while (!steps.contains(5)) {
+		//int longestConsecutive = 0; 
+		//while (longestConsecutive < 2) {
+				Bipartite fullGraph = new Bipartite(N, d);
+				
+				if (print) {
+					System.out.println("------------------");
+					System.out.println(fullGraph);
+				}
+				
+				List<List<Integer>> chainLists = fullGraph.dfsChaining(); 
+				List<Chain> chains = Chain.convertLists(chainLists);
+		
+				if (print) {
+					System.out.println(); 
+					for (Chain chain : chains) {
+						chain.print(); 
+					}
+				}
+				
+				SortedGraph sortedGraph = new SortedGraph(chains, fullGraph.getVertexList(), N); 
+				
+				if (print) {
+					System.out.println("\n Before Algorithm:");
+					System.out.println("L-term Chains");
+					System.out.println(sortedGraph.getLTerm());
+					System.out.println("\nR-term Chains");
+					System.out.println(sortedGraph.getRTerm());
+					System.out.println("\nEven Chains");
+					System.out.println(sortedGraph.getEven());
+				}
+				
+				steps = sortedGraph.connect_withPrint(); 
+				
+				if (print) {
+					System.out.println("AffectedCount: ");
+					for (int i = 0; i < N * 2; i++) {
+						System.out.print(i + ": "); 
+						for (int j = 0; j < 6; j++) {
+							System.out.print(sortedGraph.getAffectedCount()[i][j] + ", ");
+						}
+						System.out.println(); 
+					}
+					System.out.println(); 
+					
+					System.out.println("EvenToOddCount: ");
+					for (int i = 0; i < N * 2; i++) {
+						System.out.print(sortedGraph.getEvenToOddCount()[i] + ", ");
+					}
+					System.out.println(); 
+				}
+				
+				
+				int[] counts = new int[6]; 
+				for (int j = 0; j < counts.length; j++) {
+					counts[j] = 0; 
+				}
+				
+				int longestConsecutive = 0; 
+				int currConsecutive = 0; 
+				int longest5 = 0; 
+				int curr5 = 0; 
+				int longest6 = 0; 
+				int curr6 = 0; 
+				for (Integer step : steps) {
+					counts[step - 1]++; 
+					
+					if (step == 5) {
+						curr5++; 
+						currConsecutive++; 
+						curr6 = 0; 
+					} else if (step == 6) {
+						curr6++; 
+						currConsecutive++; 
+						curr5 = 0; 
+					} else {
+						currConsecutive = 0; 
+						curr5 = 0; 
+						curr6 = 0; 
+					}
+					
+					if (curr5 > longest5) {
+						longest5 = curr5;
+					}
+					if (curr6 > longest6) {
+						longest6 = curr6;
+					} 
+					if (currConsecutive > longestConsecutive) {
+						longestConsecutive = currConsecutive;
+					}
+				}
+				
+				int[] maxAffected = new int[6];
+				double[] averageAffected = new double[6];
+				for (int i = 0; i < 6; i++) {
+					maxAffected[i] = 0; 
+					averageAffected[i] = 0; 
+				}
+				int maxEvenToOdd = 0; 
+				double averageEvenToOdd = 0; 
+				
+				for (int i = 0; i < N * 2; i++) {
+					averageEvenToOdd += sortedGraph.getEvenToOddCount()[i];
+					if (sortedGraph.getEvenToOddCount()[i] > maxEvenToOdd) {
+						maxEvenToOdd = sortedGraph.getEvenToOddCount()[i];
+					}
+					for (int j = 0; j < 6; j++) {
+						averageAffected[j] += sortedGraph.getAffectedCount()[i][j];
+						if (sortedGraph.getAffectedCount()[i][j] > maxAffected[j]) {
+							maxAffected[j] = sortedGraph.getAffectedCount()[i][j]; 
+						}
+					}
+				}
+				
+				for (int i = 0; i < 6; i++) {
+					averageAffected[i] = ((double) averageAffected[i]) / N; 
+				}
+				averageEvenToOdd = averageEvenToOdd / N; 
+				
+				if (print) {
+					System.out.println(steps); 
+				}
+				System.out.printf("%d %d %d %d %d %d %d %d %d %d %d %d %f %d %d %d %d %d %d %f %f %f %f %f %f\n", N, steps.size(), counts[0], counts[1], 
+						counts[2], counts[3], counts[4], counts[5], longestConsecutive, longest5, longest6, maxEvenToOdd, 
+						averageEvenToOdd, maxAffected[0], maxAffected[1], maxAffected[2], maxAffected[3], maxAffected[4], 
+						maxAffected[5], averageAffected[0], averageAffected[1], averageAffected[2], 
+						averageAffected[3], averageAffected[4], averageAffected[5]); 
+				
+				Chain.resetNumChains(); 
+			}
 	}
 	
 	public static void countChains() {
@@ -1310,8 +1481,8 @@ public class Bipartite {
 			connectingAlg(); 
 			Chain.resetNumChains(); 
 		}*/
-		
-		connectingAlg(); 
+		connectingAlg(false); 
+		//connectingAlg_runUntil(true /* print */); 
 		//countChains(); 
 		
 		//countChains(); 
